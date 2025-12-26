@@ -1,20 +1,64 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Echo-Pages
 
-# Run and deploy your AI Studio app
+Some thoughts don’t shout.
+They echo.
 
-This contains everything you need to run your app locally.
+Echo-Pages is a quiet place on the internet —
+where words linger a little longer,
+where silence between lines matters as much as the lines themselves.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1G9wN9xwN4awLqByh6zSYOO36bf6tYusp
+This space wasn’t built to impress.
+It was built to express.
 
-## Run Locally
+**What lives here**
 
-**Prerequisites:**  Node.js
+Pages that feel like whispers
 
+Moments frozen as sentences
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Ideas that didn’t want to be rushed
+
+Emotions that needed a home, not an audience
+
+Every page is an echo —
+of something felt, remembered, or almost forgotten.
+
+**Why it exists**
+
+Not everything needs to sell.<br>
+Not everything needs to perform.
+
+Some things just need to exist
+without being explained.
+
+Echo-Pages is that decision —
+to slow down,
+to let words sit,
+to let meaning arrive on its own time.
+
+**How to read it**
+
+There’s no right order.
+No instructions.
+
+Scroll.
+Pause.
+Leave when you want.
+Come back when you need.
+
+If a line stays with you longer than expected,
+the page has done its job.
+
+A small note
+
+This is a personal corner of the web.
+If you find something familiar here,
+that’s not coincidence —
+that’s resonance.
+
+**Closing thought**
+
+Some pages are meant to be bookmarked.
+Some are meant to be felt once and carried forever.
+
+Echo-Pages hopes to be both.
