@@ -11,12 +11,17 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 const mapFromDb = (data: any): Poem => {
   if (!data) return {} as Poem;
   
-  // Robust timestamp parsing
+  // Robust timestamp parsing: handles BigInt numbers, ISO strings, or nulls
   let ts = Date.now();
-  if (data.timestamp) {
-    ts = typeof data.timestamp === 'string' ? new Date(data.timestamp).getTime() : Number(data.timestamp);
-  } else if (data.created_at) {
-    ts = new Date(data.created_at).getTime();
+  const rawTs = data.timestamp || data.created_at || data.ts;
+  
+  if (rawTs) {
+    if (typeof rawTs === 'number') {
+      ts = rawTs;
+    } else {
+      const parsed = new Date(rawTs).getTime();
+      if (!isNaN(parsed)) ts = parsed;
+    }
   }
 
   return {
@@ -24,7 +29,7 @@ const mapFromDb = (data: any): Poem => {
     title: data.title || 'Untitled',
     content: data.content || '',
     author: data.author || 'Observer',
-    timestamp: isNaN(ts) ? Date.now() : ts,
+    timestamp: ts,
     emotionTag: data.emotion_tag || 'Fragment',
     emotionalWeight: data.emotional_weight || 50,
     tone: data.tone || 'melancholic',
@@ -38,13 +43,12 @@ const mapToDb = (poem: Poem) => ({
   content: poem.content || '',
   author: poem.author || 'Observer',
   emotion_tag: poem.emotionTag || 'Fragment',
-  // Fix: Property 'emotional_weight' does not exist on type 'Poem'. Using 'emotionalWeight' instead.
   emotional_weight: poem.emotionalWeight || 50,
   tone: poem.tone || 'melancholic',
   genre: poem.genre || 'Poetry',
   background_color: poem.backgroundColor || 'linear-gradient(135deg, #1a1a1a 0%, #2d3436 100%)',
-  // Ensure we send a valid ISO string to satisfy 'timestamp' NOT NULL constraints
-  timestamp: new Date(poem.timestamp || Date.now()).toISOString()
+  // Send as a number (bigint) to match your current database schema cache
+  timestamp: Math.floor(poem.timestamp || Date.now())
 });
 
 export const supabaseService = {
@@ -55,7 +59,7 @@ export const supabaseService = {
         .select('*');
       
       if (error) {
-        console.error("Supabase Admin Fetch Error Details:", error);
+        console.error("Supabase Admin Fetch Error:", error.message, error.details);
         return [];
       }
       return (data || []).map(mapFromDb).sort((a, b) => b.timestamp - a.timestamp);
@@ -72,7 +76,7 @@ export const supabaseService = {
         .select('*');
       
       if (error) {
-        console.error("Supabase Echoes Fetch Error Details:", error);
+        console.error("Supabase Echoes Fetch Error:", error.message, error.details);
         return [];
       }
       return (data || []).map(mapFromDb).sort((a, b) => b.timestamp - a.timestamp);
@@ -84,14 +88,14 @@ export const supabaseService = {
 
   async createEcho(poem: Poem): Promise<Poem | null> {
     try {
-      const dbPoem = mapToDb(poem);
+      const dbEntry = mapToDb(poem);
       const { data, error } = await supabase
         .from('echoes')
-        .insert([dbPoem])
+        .insert([dbEntry])
         .select();
       
       if (error) {
-        console.error("Supabase Echo Insert Error Details:", error);
+        console.error("Supabase Insert Error (Echo):", error.message, error.details, "Payload:", JSON.stringify(dbEntry, null, 2));
         return null;
       }
       return (data && data.length > 0) ? mapFromDb(data[0]) : null;
@@ -103,14 +107,14 @@ export const supabaseService = {
 
   async createAdminPoem(poem: Poem): Promise<Poem | null> {
     try {
-      const dbPoem = mapToDb(poem);
+      const dbEntry = mapToDb(poem);
       const { data, error } = await supabase
         .from('admin_poems')
-        .insert([dbPoem])
+        .insert([dbEntry])
         .select();
       
       if (error) {
-        console.error("Supabase Admin Insert Error Details:", error);
+        console.error("Supabase Insert Error (Admin):", error.message, error.details, "Payload:", JSON.stringify(dbEntry, null, 2));
         return null;
       }
       return (data && data.length > 0) ? mapFromDb(data[0]) : null;
@@ -120,4 +124,3 @@ export const supabaseService = {
     }
   }
 };
-
