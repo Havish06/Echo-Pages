@@ -1,6 +1,6 @@
 # Echo Pages
 
-***Not a product. Not a platform.***
+***Not a product. Not a platform.***<br>
 ***A place where words echo back at you.***
 
 # 🌙 What is Echo Pages?
