@@ -9,42 +9,30 @@ interface PoemDetailProps {
 
 const PoemDetail: React.FC<PoemDetailProps> = ({ poem, onBack }) => {
   const [isVisible, setIsVisible] = useState(false);
-  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle');
 
   useEffect(() => {
     setIsVisible(true);
     return () => setIsVisible(false);
   }, []);
 
-  const copyLinkToEcho = () => {
-    const url = window.location.href;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopyStatus('copied');
-      setTimeout(() => setCopyStatus('idle'), 2000);
-    });
+  const shareToInstagram = () => {
+    const text = `"${poem.title}"\n\n${poem.content}\n\n— Echo Pages`;
+    navigator.clipboard.writeText(text);
+    alert('Copied poem to clipboard for Instagram sharing.');
   };
 
-  const shareToInstagram = () => {
-    const text = `"${poem.title}"\n\n${poem.content}\n\n— Echoed on Echo Pages`;
-    navigator.clipboard.writeText(text);
-    alert('Poem copied. Ready for the atmosphere of Instagram.');
+  const shareToTwitter = () => {
+    const text = `"${poem.title}"\n\n${poem.content.slice(0, 150)}${poem.content.length > 150 ? '...' : ''}\n\nEchoed on @EchoPages`;
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+    window.open(twitterUrl, '_blank');
   };
 
   return (
     <div 
-      className={`min-h-[90vh] relative transition-opacity duration-1000 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+      className={`min-h-[90vh] transition-opacity duration-1000 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
       style={{ background: poem.backgroundColor }}
     >
-      {/* Spectral Protection Watermark Layer */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-[0.03] flex flex-col justify-around">
-        {[...Array(10)].map((_, i) => (
-          <div key={i} className="watermark-text text-8xl font-black rotate-[-15deg] whitespace-nowrap">
-            ECHO PAGES • FRAGMENT {poem.id.slice(-4)} • ECHO PAGES • FRAGMENT {poem.id.slice(-4)}
-          </div>
-        ))}
-      </div>
-
-      <div className="max-w-3xl mx-auto px-6 py-20 haunting-gradient min-h-[90vh] flex flex-col justify-center relative z-10">
+      <div className="max-w-3xl mx-auto px-6 py-20 haunting-gradient min-h-[90vh] flex flex-col justify-center">
         <button 
           onClick={onBack}
           className="mb-12 self-start flex items-center space-x-3 opacity-40 hover:opacity-100 transition-all text-xs uppercase tracking-[0.2em]"
@@ -66,7 +54,7 @@ const PoemDetail: React.FC<PoemDetailProps> = ({ poem, onBack }) => {
             </h1>
           </header>
 
-          <div className="poem-content serif-font text-xl md:text-2xl leading-relaxed whitespace-pre-line italic opacity-90 relative">
+          <div className="poem-content serif-font text-xl md:text-2xl leading-relaxed whitespace-pre-line italic opacity-90">
             {poem.content}
           </div>
 
@@ -85,13 +73,13 @@ const PoemDetail: React.FC<PoemDetailProps> = ({ poem, onBack }) => {
 
               <div className="flex space-x-4">
                 <button 
-                  onClick={copyLinkToEcho}
-                  className="flex items-center space-x-3 text-[10px] uppercase tracking-widest border border-white/20 px-6 py-3 hover:bg-white hover:text-black transition-all duration-500"
+                  onClick={shareToTwitter}
+                  className="flex items-center space-x-2 text-[10px] uppercase tracking-widest border border-white/20 px-6 py-3 hover:bg-white hover:text-black transition-all duration-500"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
                   </svg>
-                  <span>{copyStatus === 'copied' ? 'Link Copied' : 'Copy Link'}</span>
+                  <span>Share X</span>
                 </button>
                 <button 
                   onClick={shareToInstagram}
@@ -102,19 +90,7 @@ const PoemDetail: React.FC<PoemDetailProps> = ({ poem, onBack }) => {
               </div>
             </div>
 
-            <div className="pt-10 flex flex-col items-center space-y-4 opacity-20">
-              <div className="flex items-center space-x-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-                <span className="text-[9px] uppercase tracking-[0.3em]">Spectral Protection Active</span>
-              </div>
-              <p className="text-[8px] uppercase tracking-widest text-center max-w-xs leading-relaxed">
-                This fragment is protected by spectral interference. Screenshots are discouraged to maintain the sanctity of the echo.
-              </p>
-            </div>
-
-            <footer className="opacity-20 text-[10px] uppercase tracking-[0.3em] text-center pt-10">
+            <footer className="opacity-20 text-[10px] uppercase tracking-[0.3em] text-center pt-20">
               Echoed by {poem.author} • {new Date(poem.timestamp).toLocaleDateString()}
             </footer>
           </div>
