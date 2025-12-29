@@ -21,9 +21,8 @@ const App: React.FC = () => {
   const [selectedPoemId, setSelectedPoemId] = useState<string | null>(null);
   const [dailyLine, setDailyLine] = useState<string>(() => localStorage.getItem('echo_daily_line') || 'The echoes are louder than the voices.');
   const [isLoading, setIsLoading] = useState(true);
-  const isInitialMount = useRef(true);
 
-  // Sync state with URL Hash
+  // Sync state with URL Hash for internal navigation
   const syncStateWithHash = () => {
     const hash = window.location.hash || '#/';
     
@@ -67,20 +66,20 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    // FORCE HOME ON MOUNT / REFRESH
-    // This satisfies the request: "when refreshed it should go to the main page"
-    // and "When clicked on the share link first page that display should be main page"
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      // Reset hash to root to ensure we don't skip the landing experience
-      if (window.location.hash !== '' && window.location.hash !== '#/') {
-        window.location.hash = '#/';
-      }
-      setCurrentView('home');
-      setSelectedPoemId(null);
+    /** 
+     * MANDATORY LANDING LOGIC
+     * On every refresh or initial load, we force the hash to root.
+     * This ensures the user always starts at the "Daily Echo" home page.
+     */
+    if (window.location.hash !== '' && window.location.hash !== '#/') {
+      window.location.hash = '#/';
     }
+    
+    // Explicitly set state to home to prevent any race conditions with the listener
+    setCurrentView('home');
+    setSelectedPoemId(null);
 
-    // Start listening for hash changes for internal navigation
+    // Start listening for FUTURE hash changes (user clicks within the app)
     window.addEventListener('hashchange', syncStateWithHash);
 
     const loadInitialData = async () => {
