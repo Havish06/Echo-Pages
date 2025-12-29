@@ -4,9 +4,10 @@ import React from 'react';
 interface FooterProps {
   onAdminClick?: () => void;
   onContactClick?: () => void;
+  onPrivacyClick?: () => void;
 }
 
-const Footer: React.FC<FooterProps> = ({ onAdminClick, onContactClick }) => {
+const Footer: React.FC<FooterProps> = ({ onAdminClick, onContactClick, onPrivacyClick }) => {
   return (
     <footer className="px-6 py-20 border-t border-white/5 opacity-30">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
@@ -20,7 +21,7 @@ const Footer: React.FC<FooterProps> = ({ onAdminClick, onContactClick }) => {
           </span>
         </div>
         
-        <div className="flex space-x-8 text-[10px] uppercase tracking-widest">
+        <div className="flex space-x-6 text-[10px] uppercase tracking-widest items-center">
           <a 
             href="https://instagram.com/echo_pages" 
             target="_blank" 
@@ -29,7 +30,14 @@ const Footer: React.FC<FooterProps> = ({ onAdminClick, onContactClick }) => {
           >
             Instagram
           </a>
-          <button className="hover:opacity-100 transition-opacity uppercase">Privacy</button>
+          <span className="opacity-10">/</span>
+          <button 
+            onClick={onPrivacyClick}
+            className="hover:opacity-100 transition-opacity uppercase"
+          >
+            Privacy
+          </button>
+          <span className="opacity-10">/</span>
           <button 
             onClick={onContactClick} 
             className="hover:opacity-100 transition-opacity uppercase"

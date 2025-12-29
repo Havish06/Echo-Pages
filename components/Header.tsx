@@ -14,7 +14,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, onNavigate }) => {
         className="cursor-pointer group flex items-center space-x-2"
         onClick={() => onNavigate('home')}
       >
-        <span className="instrument-serif text-3xl font-medium tracking-tighter group-hover:italic transition-all duration-500">
+        <span className="instrument-serif text-3xl font-medium tracking-tighter transition-all duration-500">
           Echo Pages
         </span>
       </div>

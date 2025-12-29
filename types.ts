@@ -12,7 +12,13 @@ export interface Poem {
   backgroundColor: string; // CSS gradient string
 }
 
-export type View = 'home' | 'feed' | 'user-feed' | 'detail' | 'create' | 'about' | 'admin' | 'contact';
+export interface DailyEcho {
+  date: string; // YYYY-MM-DD
+  line: string;
+  timestamp: number;
+}
+
+export type View = 'home' | 'feed' | 'user-feed' | 'detail' | 'create' | 'about' | 'admin' | 'contact' | 'privacy';
 
 export interface PoemMetadata {
   emotionTag: string;

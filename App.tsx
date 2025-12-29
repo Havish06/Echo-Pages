@@ -12,6 +12,7 @@ import PoemDetail from './components/PoemDetail.tsx';
 import CreatePoem from './components/CreatePoem.tsx';
 import About from './components/About.tsx';
 import Contact from './components/Contact.tsx';
+import Privacy from './components/Privacy.tsx';
 import AdminPortal from './components/AdminPortal.tsx';
 
 const App: React.FC = () => {
@@ -22,7 +23,6 @@ const App: React.FC = () => {
   const [dailyLine, setDailyLine] = useState<string>(() => localStorage.getItem('echo_daily_line') || 'The echoes are louder than the voices.');
   const [isLoading, setIsLoading] = useState(true);
 
-  // Sync state with URL Hash for internal navigation
   const syncStateWithHash = () => {
     const hash = window.location.hash || '#/';
     
@@ -52,6 +52,10 @@ const App: React.FC = () => {
           setCurrentView('contact');
           setSelectedPoemId(null);
           break;
+        case '#/privacy':
+          setCurrentView('privacy');
+          setSelectedPoemId(null);
+          break;
         case '#/admin':
           setCurrentView('admin');
           setSelectedPoemId(null);
@@ -66,20 +70,13 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    /** 
-     * MANDATORY LANDING LOGIC
-     * On every refresh or initial load, we force the hash to root.
-     * This ensures the user always starts at the "Daily Echo" home page.
-     */
     if (window.location.hash !== '' && window.location.hash !== '#/') {
       window.location.hash = '#/';
     }
     
-    // Explicitly set state to home to prevent any race conditions with the listener
     setCurrentView('home');
     setSelectedPoemId(null);
 
-    // Start listening for FUTURE hash changes (user clicks within the app)
     window.addEventListener('hashchange', syncStateWithHash);
 
     const loadInitialData = async () => {
@@ -107,6 +104,7 @@ const App: React.FC = () => {
     else if (view === 'create') hash = '#/create';
     else if (view === 'about') hash = '#/about';
     else if (view === 'contact') hash = '#/contact';
+    else if (view === 'privacy') hash = '#/privacy';
     else if (view === 'admin') hash = '#/admin';
 
     window.location.hash = hash;
@@ -199,11 +197,19 @@ const App: React.FC = () => {
             {currentView === 'contact' && (
               <Contact />
             )}
+
+            {currentView === 'privacy' && (
+              <Privacy />
+            )}
           </div>
         )}
       </main>
 
-      <Footer onAdminClick={() => navigateTo('admin')} onContactClick={() => navigateTo('contact')} />
+      <Footer 
+        onAdminClick={() => navigateTo('admin')} 
+        onContactClick={() => navigateTo('contact')}
+        onPrivacyClick={() => navigateTo('privacy')}
+      />
     </div>
   );
 };
