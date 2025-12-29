@@ -3,9 +3,10 @@ import React from 'react';
 
 interface FooterProps {
   onAdminClick?: () => void;
+  onContactClick?: () => void;
 }
 
-const Footer: React.FC<FooterProps> = ({ onAdminClick }) => {
+const Footer: React.FC<FooterProps> = ({ onAdminClick, onContactClick }) => {
   return (
     <footer className="px-6 py-20 border-t border-white/5 opacity-30">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
@@ -28,12 +29,17 @@ const Footer: React.FC<FooterProps> = ({ onAdminClick }) => {
           >
             Instagram
           </a>
-          <a href="#" className="hover:opacity-100 transition-opacity">Privacy</a>
-          <a href="#" className="hover:opacity-100 transition-opacity">Contact</a>
+          <button className="hover:opacity-100 transition-opacity uppercase">Privacy</button>
+          <button 
+            onClick={onContactClick} 
+            className="hover:opacity-100 transition-opacity uppercase"
+          >
+            Contact
+          </button>
         </div>
 
         <div className="text-[10px] uppercase tracking-widest opacity-0 pointer-events-none">
-          {/* Placeholder for balance if needed, or simply empty */}
+          {/* Placeholder for balance */}
         </div>
       </div>
     </footer>

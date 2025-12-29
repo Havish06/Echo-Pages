@@ -12,7 +12,7 @@ export interface Poem {
   backgroundColor: string; // CSS gradient string
 }
 
-export type View = 'home' | 'feed' | 'user-feed' | 'detail' | 'create' | 'about' | 'admin';
+export type View = 'home' | 'feed' | 'user-feed' | 'detail' | 'create' | 'about' | 'admin' | 'contact';
 
 export interface PoemMetadata {
   emotionTag: string;

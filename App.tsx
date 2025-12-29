@@ -11,6 +11,7 @@ import Feed from './components/Feed.tsx';
 import PoemDetail from './components/PoemDetail.tsx';
 import CreatePoem from './components/CreatePoem.tsx';
 import About from './components/About.tsx';
+import Contact from './components/Contact.tsx';
 import AdminPortal from './components/AdminPortal.tsx';
 
 const App: React.FC = () => {
@@ -123,11 +124,15 @@ const App: React.FC = () => {
             {currentView === 'about' && (
               <About />
             )}
+
+            {currentView === 'contact' && (
+              <Contact />
+            )}
           </div>
         )}
       </main>
 
-      <Footer onAdminClick={() => navigateTo('admin')} />
+      <Footer onAdminClick={() => navigateTo('admin')} onContactClick={() => navigateTo('contact')} />
     </div>
   );
 };
