@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Poem, View } from './types.ts';
 import { geminiService } from './services/geminiService.ts';
 import { supabaseService } from './services/supabaseService.ts';
@@ -21,6 +21,7 @@ const App: React.FC = () => {
   const [selectedPoemId, setSelectedPoemId] = useState<string | null>(null);
   const [dailyLine, setDailyLine] = useState<string>(() => localStorage.getItem('echo_daily_line') || 'The echoes are louder than the voices.');
   const [isLoading, setIsLoading] = useState(true);
+  const isInitialMount = useRef(true);
 
   // Sync state with URL Hash
   const syncStateWithHash = () => {
@@ -66,7 +67,20 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    syncStateWithHash();
+    // FORCE HOME ON MOUNT / REFRESH
+    // This satisfies the request: "when refreshed it should go to the main page"
+    // and "When clicked on the share link first page that display should be main page"
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      // Reset hash to root to ensure we don't skip the landing experience
+      if (window.location.hash !== '' && window.location.hash !== '#/') {
+        window.location.hash = '#/';
+      }
+      setCurrentView('home');
+      setSelectedPoemId(null);
+    }
+
+    // Start listening for hash changes for internal navigation
     window.addEventListener('hashchange', syncStateWithHash);
 
     const loadInitialData = async () => {
