@@ -22,7 +22,53 @@ const App: React.FC = () => {
   const [dailyLine, setDailyLine] = useState<string>(() => localStorage.getItem('echo_daily_line') || 'The echoes are louder than the voices.');
   const [isLoading, setIsLoading] = useState(true);
 
+  // Sync state with URL Hash
+  const syncStateWithHash = () => {
+    const hash = window.location.hash || '#/';
+    
+    if (hash.startsWith('#/p/')) {
+      const id = hash.replace('#/p/', '');
+      setCurrentView('detail');
+      setSelectedPoemId(id);
+    } else {
+      switch (hash) {
+        case '#/read':
+          setCurrentView('feed');
+          setSelectedPoemId(null);
+          break;
+        case '#/echoes':
+          setCurrentView('user-feed');
+          setSelectedPoemId(null);
+          break;
+        case '#/create':
+          setCurrentView('create');
+          setSelectedPoemId(null);
+          break;
+        case '#/about':
+          setCurrentView('about');
+          setSelectedPoemId(null);
+          break;
+        case '#/contact':
+          setCurrentView('contact');
+          setSelectedPoemId(null);
+          break;
+        case '#/admin':
+          setCurrentView('admin');
+          setSelectedPoemId(null);
+          break;
+        case '#/':
+        default:
+          setCurrentView('home');
+          setSelectedPoemId(null);
+          break;
+      }
+    }
+  };
+
   useEffect(() => {
+    syncStateWithHash();
+    window.addEventListener('hashchange', syncStateWithHash);
+
     const loadInitialData = async () => {
       const hasCache = !!localStorage.getItem('echo_daily_line');
       if (hasCache) setIsLoading(false);
@@ -37,11 +83,20 @@ const App: React.FC = () => {
     };
     
     loadInitialData();
+    return () => window.removeEventListener('hashchange', syncStateWithHash);
   }, []);
 
   const navigateTo = (view: View, poemId: string | null = null) => {
-    setCurrentView(view);
-    setSelectedPoemId(poemId);
+    let hash = '#/';
+    if (view === 'detail' && poemId) hash = `#/p/${poemId}`;
+    else if (view === 'feed') hash = '#/read';
+    else if (view === 'user-feed') hash = '#/echoes';
+    else if (view === 'create') hash = '#/create';
+    else if (view === 'about') hash = '#/about';
+    else if (view === 'contact') hash = '#/contact';
+    else if (view === 'admin') hash = '#/admin';
+
+    window.location.hash = hash;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -51,7 +106,7 @@ const App: React.FC = () => {
       setUserPoems(prev => [savedPoem, ...prev]);
       navigateTo('user-feed');
     } else {
-      alert("The echo failed to reach the void. This is usually due to a database connection issue or an incomplete table schema.");
+      alert("The echo failed to reach the void.");
     }
   };
 
@@ -61,7 +116,7 @@ const App: React.FC = () => {
       setAdminPoems(prev => [savedPoem, ...prev]);
       navigateTo('feed');
     } else {
-      alert("Submission failed. The void is currently closed (Database Error).");
+      alert("Submission failed.");
     }
   };
 
@@ -109,7 +164,10 @@ const App: React.FC = () => {
             {currentView === 'detail' && selectedPoem && (
               <PoemDetail 
                 poem={selectedPoem} 
-                onBack={() => navigateTo(adminPoems.some(p => p.id === selectedPoem.id) ? 'feed' : 'user-feed')} 
+                onBack={() => {
+                  const isAdmin = adminPoems.some(p => p.id === selectedPoem.id);
+                  navigateTo(isAdmin ? 'feed' : 'user-feed');
+                }} 
               />
             )}
             

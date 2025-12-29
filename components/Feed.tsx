@@ -34,12 +34,13 @@ const Feed: React.FC<FeedProps> = ({ poems, onSelectPoem }) => {
               {poem.title}
             </h2>
 
-            <p className="serif-font opacity-60 line-clamp-4 leading-relaxed italic mb-8 flex-grow">
-              {poem.content}
-            </p>
+            {/* Note: Content preview removed for privacy as requested */}
+            <div className="flex-grow">
+               <div className="h-[1px] w-8 bg-echo-border group-hover:w-full transition-all duration-1000" />
+            </div>
 
-            <div className="flex items-center justify-between pt-6 border-t border-echo-border opacity-0 group-hover:opacity-100 transition-opacity duration-700">
-              <span className="text-[10px] uppercase tracking-widest font-medium">Read more</span>
+            <div className="flex items-center justify-between pt-10 border-t border-echo-border/5 opacity-40 group-hover:opacity-100 transition-opacity duration-700">
+              <span className="text-[10px] uppercase tracking-widest font-medium">Open Fragment</span>
               <div className="h-[1px] w-12 bg-echo-muted opacity-20" />
             </div>
           </article>
