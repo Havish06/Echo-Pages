@@ -26,8 +26,13 @@ const App: React.FC = () => {
   const [dailyLine, setDailyLine] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
 
-  const syncStateWithHash = () => {
+  const syncStateWithHash = async () => {
     const hash = window.location.hash || '#/';
+    
+    // Auth Guard logic
+    const { data: { session } } = await supabase.auth.getSession();
+    const protectedViews: View[] = ['profile', 'create', 'admin'];
+    
     if (hash.startsWith('#/p/')) {
       setSelectedPoemId(hash.replace('#/p/', ''));
       setCurrentView('detail');
@@ -45,7 +50,15 @@ const App: React.FC = () => {
         '#/auth': 'auth',
         '#/': 'home'
       };
-      setCurrentView(views[hash] || 'home');
+      
+      const targetView = views[hash] || 'home';
+      
+      if (protectedViews.includes(targetView) && !session) {
+        window.location.hash = '#/auth';
+        return;
+      }
+
+      setCurrentView(targetView);
       setSelectedPoemId(null);
     }
   };
@@ -70,11 +83,19 @@ const App: React.FC = () => {
     syncStateWithHash();
     refreshData();
 
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') syncStateWithHash();
+      if (event === 'SIGNED_OUT') navigateTo('home');
+    });
+
     geminiService.getDailyLine().then(line => {
       setDailyLine(line);
     });
 
-    return () => window.removeEventListener('hashchange', syncStateWithHash);
+    return () => {
+      window.removeEventListener('hashchange', syncStateWithHash);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const navigateTo = (view: View, poemId: string | null = null) => {

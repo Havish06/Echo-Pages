@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../services/supabaseService.ts';
+import { supabase, authService } from '../services/supabaseService.ts';
 import { Poem } from '../types.ts';
 
 const Profile: React.FC = () => {
@@ -22,7 +22,7 @@ const Profile: React.FC = () => {
     }
   };
 
-  const handleSignOut = () => supabase.auth.signOut().then(() => window.location.hash = '#/');
+  const handleSignOut = () => authService.logout();
 
   if (!user) return null;
 

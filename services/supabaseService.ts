@@ -8,8 +8,41 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /**
+ * Auth Methods
+ */
+export const authService = {
+  async signup(email, password) {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) throw error;
+    return data;
+  },
+
+  async login(email, password) {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    return data;
+  },
+
+  async loginWithGoogle() {
+    // Force redirectTo to match the base origin exactly. 
+    // IMPORTANT: This exact URL MUST be in your Supabase "Redirect URLs" whitelist.
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+      }
+    });
+    if (error) throw error;
+  },
+
+  async logout() {
+    await supabase.auth.signOut();
+    window.location.hash = '#/auth';
+  }
+};
+
+/**
  * Maps database snake_case columns to the application's Poem interface.
- * Ensures all types are correctly cast from the Supabase response.
  */
 const mapFromDb = (data: any): Poem => ({
   id: String(data.id),
@@ -34,13 +67,9 @@ export const supabaseService = {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error("Supabase Echoes Fetch Error:", error.message);
-        return [];
-      }
+      if (error) return [];
       return (data || []).map(mapFromDb);
     } catch (e) {
-      console.error("Unexpected Error in getEchoes:", e);
       return [];
     }
   },
@@ -52,13 +81,9 @@ export const supabaseService = {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error("Supabase Admin Poems Fetch Error:", error.message);
-        return [];
-      }
+      if (error) return [];
       return (data || []).map(mapFromDb);
     } catch (e) {
-      console.error("Unexpected Error in getAdminPoems:", e);
       return [];
     }
   },
@@ -82,10 +107,7 @@ export const supabaseService = {
       .insert([payload])
       .select();
     
-    if (error) {
-      console.error("Supabase Echo Creation Error:", error.message);
-      return null;
-    }
+    if (error) return null;
     return data ? mapFromDb(data[0]) : null;
   },
 
@@ -108,10 +130,7 @@ export const supabaseService = {
       .insert([payload])
       .select();
 
-    if (error) {
-      console.error("Supabase Admin Creation Error:", error.message);
-      return null;
-    }
+    if (error) return null;
     return data ? mapFromDb(data[0]) : null;
   },
 
@@ -125,10 +144,7 @@ export const supabaseService = {
         .select('user_id, author, score')
         .gt('created_at', oneWeekAgo.toISOString());
         
-      if (error) {
-        console.error("Leaderboard Fetch Error:", error.message);
-        return [];
-      }
+      if (error) return [];
       
       const userMap: Record<string, { total: number, count: number, name: string }> = {};
       data?.forEach(d => {
