@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Poem, View } from './types.ts';
 import { geminiService } from './services/geminiService.ts';
-import { supabaseService } from './services/supabaseService.ts';
+import { supabaseService, supabase } from './services/supabaseService.ts';
 
 import Header from './components/Header.tsx';
 import Footer from './components/Footer.tsx';
@@ -14,120 +14,101 @@ import About from './components/About.tsx';
 import Contact from './components/Contact.tsx';
 import Privacy from './components/Privacy.tsx';
 import AdminPortal from './components/AdminPortal.tsx';
+import Profile from './components/Profile.tsx';
+import Leaderboard from './components/Leaderboard.tsx';
+import Auth from './components/Auth.tsx';
 
 const App: React.FC = () => {
   const [adminPoems, setAdminPoems] = useState<Poem[]>([]);
   const [userPoems, setUserPoems] = useState<Poem[]>([]);
   const [currentView, setCurrentView] = useState<View>('home');
   const [selectedPoemId, setSelectedPoemId] = useState<string | null>(null);
-  const [dailyLine, setDailyLine] = useState<string>(() => localStorage.getItem('echo_daily_line') || 'The echoes are louder than the voices.');
+  const [dailyLine, setDailyLine] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
 
   const syncStateWithHash = () => {
     const hash = window.location.hash || '#/';
-    
     if (hash.startsWith('#/p/')) {
-      const id = hash.replace('#/p/', '');
+      setSelectedPoemId(hash.replace('#/p/', ''));
       setCurrentView('detail');
-      setSelectedPoemId(id);
     } else {
-      switch (hash) {
-        case '#/read':
-          setCurrentView('feed');
-          setSelectedPoemId(null);
-          break;
-        case '#/echoes':
-          setCurrentView('user-feed');
-          setSelectedPoemId(null);
-          break;
-        case '#/create':
-          setCurrentView('create');
-          setSelectedPoemId(null);
-          break;
-        case '#/about':
-          setCurrentView('about');
-          setSelectedPoemId(null);
-          break;
-        case '#/contact':
-          setCurrentView('contact');
-          setSelectedPoemId(null);
-          break;
-        case '#/privacy':
-          setCurrentView('privacy');
-          setSelectedPoemId(null);
-          break;
-        case '#/admin':
-          setCurrentView('admin');
-          setSelectedPoemId(null);
-          break;
-        case '#/':
-        default:
-          setCurrentView('home');
-          setSelectedPoemId(null);
-          break;
-      }
+      const views: Record<string, View> = {
+        '#/read': 'feed',
+        '#/echoes': 'user-feed',
+        '#/create': 'create',
+        '#/about': 'about',
+        '#/contact': 'contact',
+        '#/privacy': 'privacy',
+        '#/admin': 'admin',
+        '#/profile': 'profile',
+        '#/ranks': 'leaderboard',
+        '#/auth': 'auth',
+        '#/': 'home'
+      };
+      setCurrentView(views[hash] || 'home');
+      setSelectedPoemId(null);
+    }
+  };
+
+  const refreshData = async () => {
+    try {
+      const [admins, users] = await Promise.all([
+        supabaseService.getAdminPoems(),
+        supabaseService.getEchoes()
+      ]);
+      setAdminPoems(admins || []);
+      setUserPoems(users || []);
+    } catch (err) {
+      console.error("Data Refresh Failed:", err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (window.location.hash !== '' && window.location.hash !== '#/') {
-      window.location.hash = '#/';
-    }
-    
-    setCurrentView('home');
-    setSelectedPoemId(null);
-
     window.addEventListener('hashchange', syncStateWithHash);
+    syncStateWithHash();
+    refreshData();
 
-    const loadInitialData = async () => {
-      const hasCache = !!localStorage.getItem('echo_daily_line');
-      if (hasCache) setIsLoading(false);
+    geminiService.getDailyLine().then(line => {
+      setDailyLine(line);
+    });
 
-      supabaseService.getAdminPoems().then(setAdminPoems);
-      supabaseService.getEchoes().then(setUserPoems);
-      
-      geminiService.getDailyLine().then(line => {
-        setDailyLine(line);
-        setIsLoading(false);
-      }).catch(() => setIsLoading(false));
-    };
-    
-    loadInitialData();
     return () => window.removeEventListener('hashchange', syncStateWithHash);
   }, []);
 
   const navigateTo = (view: View, poemId: string | null = null) => {
-    let hash = '#/';
-    if (view === 'detail' && poemId) hash = `#/p/${poemId}`;
-    else if (view === 'feed') hash = '#/read';
-    else if (view === 'user-feed') hash = '#/echoes';
-    else if (view === 'create') hash = '#/create';
-    else if (view === 'about') hash = '#/about';
-    else if (view === 'contact') hash = '#/contact';
-    else if (view === 'privacy') hash = '#/privacy';
-    else if (view === 'admin') hash = '#/admin';
-
-    window.location.hash = hash;
+    const routes: Record<View, string> = {
+      'home': '#/',
+      'feed': '#/read',
+      'user-feed': '#/echoes',
+      'create': '#/create',
+      'about': '#/about',
+      'contact': '#/contact',
+      'privacy': '#/privacy',
+      'admin': '#/admin',
+      'profile': '#/profile',
+      'leaderboard': '#/ranks',
+      'auth': '#/auth',
+      'detail': `#/p/${poemId}`
+    };
+    window.location.hash = routes[view];
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleAddPoem = async (newPoem: Poem) => {
+  const handleAddCommunityPoem = async (newPoem: Partial<Poem>) => {
     const savedPoem = await supabaseService.createEcho(newPoem);
     if (savedPoem) {
       setUserPoems(prev => [savedPoem, ...prev]);
       navigateTo('user-feed');
-    } else {
-      alert("The echo failed to reach the void.");
     }
   };
 
-  const handleAddAdminPoem = async (newPoem: Poem) => {
-    const savedPoem = await supabaseService.createAdminPoem(newPoem);
+  const handleAddCuratePoem = async (newPoem: Partial<Poem>) => {
+    const savedPoem = await supabaseService.createAdminCurate(newPoem);
     if (savedPoem) {
       setAdminPoems(prev => [savedPoem, ...prev]);
       navigateTo('feed');
-    } else {
-      alert("Submission failed.");
     }
   };
 
@@ -136,80 +117,44 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col transition-colors duration-500 bg-echo-bg text-echo-text">
-      <Header 
-        currentView={currentView} 
-        onNavigate={navigateTo} 
-      />
+      <Header currentView={currentView} onNavigate={navigateTo} />
       
       <main className="flex-grow">
-        {isLoading && currentView === 'home' && !dailyLine ? (
-          <div className="min-h-[80vh] flex items-center justify-center opacity-20 italic instrument-serif animate-pulse">
-            Opening the void...
-          </div>
-        ) : (
-          <div className="animate-fade-in duration-500">
-            {currentView === 'home' && (
-              <Home dailyLine={dailyLine} onNavigate={navigateTo} />
-            )}
-            
-            {currentView === 'feed' && (
-              <div className="pt-10">
-                <div className="max-w-7xl mx-auto px-6 mb-8 text-center">
-                  <h2 className="instrument-serif text-4xl italic opacity-80">Read</h2>
-                  <p className="text-[10px] uppercase tracking-widest opacity-40 mt-2">Curated Fragments</p>
-                </div>
-                <Feed poems={adminPoems} onSelectPoem={(id) => navigateTo('detail', id)} />
-              </div>
-            )}
-
-            {currentView === 'user-feed' && (
-              <div className="pt-10">
-                <div className="max-w-7xl mx-auto px-6 mb-8 text-center">
-                  <h2 className="instrument-serif text-4xl italic opacity-80">By Echoes</h2>
-                  <p className="text-[10px] uppercase tracking-widest opacity-40 mt-2">Community Echoes</p>
-                </div>
-                <Feed poems={userPoems} onSelectPoem={(id) => navigateTo('detail', id)} />
-              </div>
-            )}
-            
-            {currentView === 'detail' && selectedPoem && (
-              <PoemDetail 
-                poem={selectedPoem} 
-                onBack={() => {
-                  const isAdmin = adminPoems.some(p => p.id === selectedPoem.id);
-                  navigateTo(isAdmin ? 'feed' : 'user-feed');
-                }} 
-              />
-            )}
-            
-            {currentView === 'create' && (
-              <CreatePoem onPublish={handleAddPoem} onCancel={() => navigateTo('user-feed')} />
-            )}
-
-            {currentView === 'admin' && (
-              <AdminPortal onPublish={handleAddAdminPoem} onCancel={() => navigateTo('feed')} />
-            )}
-
-            {currentView === 'about' && (
-              <About />
-            )}
-
-            {currentView === 'contact' && (
-              <Contact />
-            )}
-
-            {currentView === 'privacy' && (
-              <Privacy />
-            )}
-          </div>
-        )}
+        <div className="animate-fade-in duration-500">
+          {currentView === 'home' && <Home dailyLine={dailyLine} onNavigate={navigateTo} />}
+          {currentView === 'feed' && (
+            <div className="pt-10">
+              <header className="mb-12 text-center space-y-2">
+                <h2 className="instrument-serif text-5xl italic opacity-90">Read</h2>
+                <p className="text-[10px] uppercase tracking-[0.3em] opacity-30">Curated Curiosities</p>
+              </header>
+              <Feed poems={adminPoems} onSelectPoem={(id) => navigateTo('detail', id)} />
+            </div>
+          )}
+          {currentView === 'user-feed' && (
+            <div className="pt-10">
+              <header className="mb-12 text-center space-y-2">
+                <h2 className="instrument-serif text-5xl italic opacity-90">Echoes</h2>
+                <p className="text-[10px] uppercase tracking-[0.3em] opacity-30">The Community Stream</p>
+              </header>
+              <Feed poems={userPoems} onSelectPoem={(id) => navigateTo('detail', id)} />
+            </div>
+          )}
+          {currentView === 'detail' && selectedPoem && (
+            <PoemDetail poem={selectedPoem} onBack={() => navigateTo(selectedPoem.author === 'Admin' ? 'feed' : 'user-feed')} />
+          )}
+          {currentView === 'create' && <CreatePoem onPublish={handleAddCommunityPoem} onCancel={() => navigateTo('home')} />}
+          {currentView === 'leaderboard' && <Leaderboard />}
+          {currentView === 'profile' && <Profile />}
+          {currentView === 'auth' && <Auth />}
+          {currentView === 'about' && <About />}
+          {currentView === 'contact' && <Contact />}
+          {currentView === 'privacy' && <Privacy />}
+          {currentView === 'admin' && <AdminPortal onPublish={handleAddCuratePoem} onCancel={() => navigateTo('home')} />}
+        </div>
       </main>
 
-      <Footer 
-        onAdminClick={() => navigateTo('admin')} 
-        onContactClick={() => navigateTo('contact')}
-        onPrivacyClick={() => navigateTo('privacy')}
-      />
+      <Footer onAdminClick={() => navigateTo('admin')} onContactClick={() => navigateTo('contact')} onPrivacyClick={() => navigateTo('privacy')} />
     </div>
   );
 };

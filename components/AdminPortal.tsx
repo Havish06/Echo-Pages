@@ -25,22 +25,24 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onPublish, onCancel }) => {
       const meta = await geminiService.analyzePoem(content);
       
       const finalPoem: Poem = {
-        id: '', // DB handles ID
+        id: '', 
         title: title.trim(),
         content: content.trim(),
         author: 'Admin',
+        userId: 'admin',
         timestamp: Date.now(),
         emotionTag: meta.emotionTag,
         emotionalWeight: meta.emotionalWeight,
+        score: meta.genreScore,
         tone: 'melancholic',
-        genre: 'Curated',
+        genre: meta.detectedGenre,
         backgroundColor: meta.backgroundGradient
       };
 
       onPublish(finalPoem);
     } catch (error) {
       console.error("Admin Publication error:", error);
-      alert("Failed to commit the curate. Check console for table schema details.");
+      alert("Failed to commit the curate.");
     } finally {
       setIsPublishing(false);
     }

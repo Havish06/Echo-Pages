@@ -2,41 +2,14 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { PoemMetadata } from "../types.ts";
 
-const CACHE_KEY = 'echo_daily_line';
-const CACHE_TIME_KEY = 'echo_daily_line_timestamp';
-const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
-
 export const geminiService = {
   async getDailyLine(): Promise<string> {
-    const cachedLine = localStorage.getItem(CACHE_KEY);
-    const cachedTimestamp = localStorage.getItem(CACHE_TIME_KEY);
-    const now = Date.now();
-
-    if (cachedLine && cachedTimestamp && (now - parseInt(cachedTimestamp)) < TWENTY_FOUR_HOURS) {
-      return cachedLine;
-    }
-
-    try {
-      // Initialize inside the method to avoid module-level crashes during Vercel builds/startup
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: "Generate one hauntingly beautiful, short, introspective line of poetry. No quotation marks. No explanation.",
-        config: {
-            temperature: 0.9,
-            topP: 0.95,
-        }
-      });
-      const newLine = response.text?.trim() || "The echoes are louder than the voices.";
-      
-      localStorage.setItem(CACHE_KEY, newLine);
-      localStorage.setItem(CACHE_TIME_KEY, now.toString());
-      
-      return newLine;
-    } catch (error) {
-      console.error("Error generating daily line:", error);
-      return cachedLine || "Silence is the only thing we truly own.";
-    }
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: "Generate one hauntingly beautiful, short, introspective line of poetry. No quotation marks. No explanation.",
+    });
+    return response.text?.trim() || "Silence is the only thing we truly own.";
   },
 
   async analyzePoem(content: string): Promise<PoemMetadata> {
@@ -44,7 +17,16 @@ export const geminiService = {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Analyze this poem for its emotional characteristics. Provide a short emotion tag (one word), an emotional weight (0-100), a suggested title, and a subtle CSS linear-gradient background (dark colors) that reflects the mood. Poem: "${content}"`,
+        contents: `Analyze this poem. 
+        1. Classify emotion (1 word).
+        2. Emotional weight (0-100).
+        3. Title suggestion.
+        4. Dark CSS gradient.
+        5. Safety check: Is it profane or toxic? (boolean).
+        6. Genre Detection: Identify which genre fits best: Noir, Ethereal, Minimalist, Free Verse, Prose, or Haiku.
+        7. Accuracy: How well does it fit that detected genre? (0-100).
+        
+        Poem: "${content}"`,
         config: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -53,9 +35,12 @@ export const geminiService = {
               emotionTag: { type: Type.STRING },
               emotionalWeight: { type: Type.NUMBER },
               suggestedTitle: { type: Type.STRING },
-              backgroundGradient: { type: Type.STRING }
+              backgroundGradient: { type: Type.STRING },
+              isSafe: { type: Type.BOOLEAN },
+              detectedGenre: { type: Type.STRING },
+              genreScore: { type: Type.NUMBER }
             },
-            required: ["emotionTag", "emotionalWeight", "suggestedTitle", "backgroundGradient"]
+            required: ["emotionTag", "emotionalWeight", "suggestedTitle", "backgroundGradient", "isSafe", "detectedGenre", "genreScore"]
           }
         }
       });
@@ -65,15 +50,21 @@ export const geminiService = {
         emotionTag: result.emotionTag || 'Echo',
         emotionalWeight: result.emotionalWeight || 50,
         suggestedTitle: result.suggestedTitle || 'Untitled Echo',
-        backgroundGradient: result.backgroundGradient || 'linear-gradient(135deg, #1a1a1a 0%, #2d3436 100%)'
+        backgroundGradient: result.backgroundGradient || 'linear-gradient(135deg, #1a1a1a 0%, #2d3436 100%)',
+        isSafe: result.isSafe ?? true,
+        detectedGenre: result.detectedGenre || 'Free Verse',
+        genreScore: result.genreScore || 0
       };
     } catch (error) {
-      console.error("Error analyzing poem:", error);
+      console.error("Analysis Error:", error);
       return {
-        emotionTag: 'Quiet',
-        emotionalWeight: 50,
+        emotionTag: 'Static',
+        emotionalWeight: 0,
         suggestedTitle: 'Fragment',
-        backgroundGradient: 'linear-gradient(135deg, #1a1a1a 0%, #2d3436 100%)'
+        backgroundGradient: 'linear-gradient(135deg, #000 0%, #111 100%)',
+        isSafe: true,
+        detectedGenre: 'Free Verse',
+        genreScore: 0
       };
     }
   }

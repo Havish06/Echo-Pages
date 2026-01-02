@@ -2,65 +2,62 @@
 import React, { useState, useEffect } from 'react';
 import { Poem } from '../types.ts';
 import { geminiService } from '../services/geminiService.ts';
+import { supabase } from '../services/supabaseService.ts';
 
 interface CreatePoemProps {
   onPublish: (poem: Poem) => void;
   onCancel: () => void;
 }
 
-const BRAINSTORMING_PROMPTS = [
-  "The streetlights hummed a secret only the rain understood...",
-  "I found a piece of silence in my pocket today...",
-  "Memory is a house with too many locked doors...",
-  "Between the heartbeat and the breath, there is a ghost...",
-  "The coffee went cold while I watched the shadows stretch...",
-  "We are all just echoes of people we used to be...",
-  "The stars are just holes in the ceiling of the world...",
-  "Write about the weight of a word left unsaid...",
-  "Describe the color of a forgotten Sunday afternoon..."
-];
-
 const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
-  const [placeholder, setPlaceholder] = useState('');
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    // Select a random brainstorming prompt on mount
-    const randomPrompt = BRAINSTORMING_PROMPTS[Math.floor(Math.random() * BRAINSTORMING_PROMPTS.length)];
-    setPlaceholder(randomPrompt);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
   }, []);
 
   const handlePublish = async () => {
-    if (!content.trim()) {
-      alert("The void requires words to echo.");
+    if (!content.trim()) return;
+    
+    if (!user) {
+      alert("You must enter the void (login) before echoing. Your thoughts require an anchor.");
       return;
     }
     
     setIsPublishing(true);
     
     try {
-      // AI handles the atmospheric metadata in the background
+      // Automatic detection via Gemini API - detects Genre, Emotion, and provides Accuracy
       const meta = await geminiService.analyzePoem(content);
       
-      const finalPoem: Poem = {
-        id: Date.now().toString(),
+      if (!meta.isSafe) {
+        alert("The void rejected this frequency. Maintain the sanctity of the platform.");
+        setIsPublishing(false);
+        return;
+      }
+
+      const finalPoem: Partial<Poem> = {
         title: title.trim() || meta.suggestedTitle,
         content: content.trim(),
-        author: 'Observer',
+        author: user.email?.split('@')[0] || 'Observer',
+        userId: user.id,
         timestamp: Date.now(),
         emotionTag: meta.emotionTag,
         emotionalWeight: meta.emotionalWeight,
-        tone: 'melancholic',
-        genre: 'Poetry',
+        score: meta.genreScore,
+        genre: meta.detectedGenre,
         backgroundColor: meta.backgroundGradient
       };
 
-      onPublish(finalPoem);
+      onPublish(finalPoem as Poem);
     } catch (error) {
-      console.error("Error during publishing:", error);
-      alert("The echo failed to reach the depths. Please try again.");
+      console.error("Publishing error:", error);
+      alert("Transmission interrupted. The spectral connection is unstable.");
     } finally {
       setIsPublishing(false);
     }
@@ -71,50 +68,56 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
       <div className="space-y-12">
         <header className="flex justify-between items-baseline border-b border-echo-border pb-8">
           <div className="space-y-1">
-            <h2 className="instrument-serif text-4xl italic">Contribute an echo</h2>
-            <p className="text-[10px] uppercase tracking-widest opacity-30">Pure expression, no filters.</p>
+            <h2 className="instrument-serif text-5xl italic">New Echo</h2>
+            <p className="text-[10px] uppercase tracking-[0.3em] opacity-30 mt-2">Genre resonance and accuracy will be detected automatically.</p>
           </div>
           <button 
-            onClick={onCancel}
-            className="text-[10px] uppercase tracking-widest opacity-30 hover:opacity-100 transition-opacity"
+            onClick={onCancel} 
+            className="text-[10px] uppercase tracking-widest opacity-30 hover:opacity-100 transition-opacity border border-echo-border px-4 py-2"
           >
-            Cancel
+            Discard
           </button>
         </header>
         
-        <div className="space-y-10">
-          <div className="space-y-3">
-            <p className="text-[10px] uppercase tracking-widest opacity-30">Title (Optional)</p>
+        <div className="space-y-16">
+          <div className="space-y-4">
+            <p className="text-[10px] uppercase tracking-[0.4em] opacity-30">Identity Label</p>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Give your echo a name..."
-              className="w-full bg-transparent border-b border-echo-border py-4 focus:border-echo-text focus:outline-none instrument-serif text-4xl transition-colors"
+              placeholder="A name for your shadow (Optional)"
+              className="w-full bg-transparent border-b border-echo-border py-6 focus:border-echo-text focus:outline-none instrument-serif text-5xl placeholder:opacity-10 transition-all"
             />
           </div>
 
-          <div className="space-y-3">
-            <p className="text-[10px] uppercase tracking-widest opacity-30">Your Verse</p>
+          <div className="space-y-4">
+            <p className="text-[10px] uppercase tracking-[0.4em] opacity-30">The Verse</p>
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder={placeholder}
-              className="w-full h-96 bg-transparent border border-echo-border p-8 focus:border-echo-text focus:outline-none transition-all serif-font text-2xl italic leading-relaxed whitespace-pre-line placeholder:opacity-20"
+              placeholder="Whisper into the void..."
+              className="w-full h-[500px] bg-transparent border border-echo-border p-10 focus:border-echo-text focus:outline-none transition-all serif-font text-3xl italic leading-relaxed placeholder:opacity-10 resize-none scrollbar-hide"
             />
           </div>
 
-          <div className="pt-8">
+          <div className="pt-10 space-y-8">
             <button
               onClick={handlePublish}
               disabled={isPublishing || !content.trim()}
-              className="w-full py-6 bg-echo-text text-echo-bg text-[11px] uppercase tracking-[0.4em] font-medium hover:opacity-80 transition-all disabled:opacity-20 flex items-center justify-center space-x-4"
+              className="group relative w-full py-10 bg-echo-text text-echo-bg text-[11px] uppercase tracking-[0.6em] font-black hover:bg-white transition-all disabled:opacity-20 overflow-hidden"
             >
-              {isPublishing && <div className="w-4 h-4 border-2 border-echo-bg/30 border-t-echo-bg rounded-full animate-spin" />}
-              <span>{isPublishing ? 'Transmitting to the Void...' : 'Publish Echo'}</span>
+              {isPublishing ? (
+                <div className="flex items-center justify-center space-x-6">
+                  <div className="w-4 h-4 border-2 border-echo-bg/30 border-t-echo-bg rounded-full animate-spin" />
+                  <span className="animate-pulse">Measuring Spectral Resonance...</span>
+                </div>
+              ) : (
+                'Commit Echo to the Dark'
+              )}
             </button>
-            <p className="text-center mt-6 text-[10px] uppercase tracking-widest opacity-20">
-              AI will set the atmosphere based on your words.
+            <p className="text-center text-[10px] uppercase tracking-[0.3em] opacity-20">
+              AI evaluates genre precision (0-100%) and emotional mastery.
             </p>
           </div>
         </div>
