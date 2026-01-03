@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, Type, Modality } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { PoemMetadata } from "../types.ts";
 
 export const geminiService = {
@@ -17,21 +17,25 @@ export const geminiService = {
     }
   },
 
-  async analyzePoem(content: string): Promise<PoemMetadata> {
+  async analyzePoem(content: string, title?: string): Promise<PoemMetadata> {
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Analyze this poem. 
+      const prompt = `Analyze this poem fragment. 
         1. Classify emotion (1 word).
         2. Emotional weight (0-100).
-        3. Title suggestion.
+        3. If no title provided, suggest a title based strictly on genre and context.
         4. Dark CSS gradient.
-        5. Safety check: Is it profane or toxic? (boolean).
-        6. Genre Detection: Identify which genre fits best: Noir, Ethereal, Minimalist, Free Verse, Prose, or Haiku.
-        7. Accuracy: How well does it fit that detected genre? (0-100).
+        5. Safety check: Is it profane or explicit? (boolean).
+        6. Restricted words: Does it contain profanity or toxic language? (boolean).
+        7. Genre Detection: Identify which fits best: Noir, Ethereal, Minimalist, Free Verse, Prose, or Haiku.
+        8. Accuracy: How well does it fit that detected genre? (0-100).
         
-        Poem: "${content}"`,
+        Title provided: "${title || 'None'}"
+        Poem: "${content}"`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: prompt,
         config: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -42,10 +46,11 @@ export const geminiService = {
               suggestedTitle: { type: Type.STRING },
               backgroundGradient: { type: Type.STRING },
               isSafe: { type: Type.BOOLEAN },
+              containsRestricted: { type: Type.BOOLEAN },
               detectedGenre: { type: Type.STRING },
               genreScore: { type: Type.NUMBER }
             },
-            required: ["emotionTag", "emotionalWeight", "suggestedTitle", "backgroundGradient", "isSafe", "detectedGenre", "genreScore"]
+            required: ["emotionTag", "emotionalWeight", "suggestedTitle", "backgroundGradient", "isSafe", "containsRestricted", "detectedGenre", "genreScore"]
           }
         }
       });
@@ -57,8 +62,9 @@ export const geminiService = {
         suggestedTitle: result.suggestedTitle || 'Untitled Echo',
         backgroundGradient: result.backgroundGradient || 'linear-gradient(135deg, #1a1a1a 0%, #2d3436 100%)',
         isSafe: result.isSafe ?? true,
+        containsRestricted: result.containsRestricted ?? false,
         detectedGenre: result.detectedGenre || 'Free Verse',
-        genreScore: result.genreScore || 0
+        genreScore: result.genreScore || 75
       };
     } catch (error) {
       console.error("Analysis Error:", error);
@@ -68,34 +74,10 @@ export const geminiService = {
         suggestedTitle: 'Fragment',
         backgroundGradient: 'linear-gradient(135deg, #000 0%, #111 100%)',
         isSafe: true,
+        containsRestricted: false,
         detectedGenre: 'Free Verse',
-        genreScore: 0
+        genreScore: 75
       };
-    }
-  },
-
-  async getPoemAudio(title: string, content: string): Promise<string | undefined> {
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const prompt = `Read this poem titled "${title}" with a slow, introspective, and hauntingly calm pace. Poem content: ${content}`;
-      
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-preview-tts",
-        contents: [{ parts: [{ text: prompt }] }],
-        config: {
-          responseModalities: [Modality.AUDIO],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: 'Kore' }, // Haunting, deeper voice
-            },
-          },
-        },
-      });
-
-      return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    } catch (error) {
-      console.error("TTS Error:", error);
-      return undefined;
     }
   }
 };

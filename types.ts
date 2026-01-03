@@ -2,6 +2,7 @@
 export interface UserProfile {
   id: string;
   username: string;
+  displayName: string;
   avatarUrl?: string;
   totalPoems: number;
   avgScore: number;
@@ -12,7 +13,7 @@ export interface Poem {
   id: string;
   title: string;
   content: string;
-  author: string; // The username
+  author: string; // The display name
   userId: string;
   timestamp: number;
   emotionTag: string;
@@ -26,6 +27,7 @@ export interface Poem {
 export interface LeaderboardEntry {
   userId: string;
   username: string;
+  displayName: string;
   score: number;
   poemCount: number;
 }
@@ -40,4 +42,5 @@ export interface PoemMetadata {
   genreScore: number;
   detectedGenre: string;
   isSafe: boolean;
+  containsRestricted: boolean;
 }

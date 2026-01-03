@@ -13,6 +13,7 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
+  const [warning, setWarning] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
@@ -23,20 +24,19 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
 
   const handlePublish = async () => {
     if (!content.trim()) return;
-    
     if (!user) {
-      alert("You must enter the void (login) before echoing. Your thoughts require an anchor.");
+      alert("Entrance required. Reconnect your identity.");
       return;
     }
     
     setIsPublishing(true);
+    setWarning(null);
     
     try {
-      // Automatic detection via Gemini API - detects Genre, Emotion, and provides Accuracy
-      const meta = await geminiService.analyzePoem(content);
+      const meta = await geminiService.analyzePoem(content, title);
       
-      if (!meta.isSafe) {
-        alert("The void rejected this frequency. Maintain the sanctity of the platform.");
+      if (!meta.isSafe || meta.containsRestricted) {
+        setWarning("Some words may not align with our community guidelines. Please revise before publishing.");
         setIsPublishing(false);
         return;
       }
@@ -44,7 +44,7 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
       const finalPoem: Partial<Poem> = {
         title: title.trim() || meta.suggestedTitle,
         content: content.trim(),
-        author: user.email?.split('@')[0] || 'Observer',
+        author: user.user_metadata?.display_name || user.email?.split('@')[0] || 'Observer',
         userId: user.id,
         timestamp: Date.now(),
         emotionTag: meta.emotionTag,
@@ -57,7 +57,7 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
       onPublish(finalPoem as Poem);
     } catch (error) {
       console.error("Publishing error:", error);
-      alert("Transmission interrupted. The spectral connection is unstable.");
+      alert("Transmission interrupted.");
     } finally {
       setIsPublishing(false);
     }
@@ -66,59 +66,48 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
   return (
     <div className="max-w-4xl mx-auto px-6 py-20 animate-fade-in">
       <div className="space-y-12">
-        <header className="flex justify-between items-baseline border-b border-echo-border pb-8">
-          <div className="space-y-1">
-            <h2 className="instrument-serif text-5xl italic">New Echo</h2>
-            <p className="text-[10px] uppercase tracking-[0.3em] opacity-30 mt-2">Genre resonance and accuracy will be detected automatically.</p>
-          </div>
-          <button 
-            onClick={onCancel} 
-            className="text-[10px] uppercase tracking-widest opacity-30 hover:opacity-100 transition-opacity border border-echo-border px-4 py-2"
-          >
-            Discard
-          </button>
+        <header className="flex justify-between items-center border-b border-echo-border pb-8">
+          <h2 className="instrument-serif text-5xl italic">New Echo</h2>
+          <button onClick={onCancel} className="text-[10px] uppercase tracking-widest opacity-30 hover:opacity-100 px-4 py-2 border border-echo-border">Discard</button>
         </header>
         
         <div className="space-y-16">
           <div className="space-y-4">
-            <p className="text-[10px] uppercase tracking-[0.4em] opacity-30">Identity Label</p>
+            <p className="text-[10px] uppercase tracking-[0.4em] opacity-30">Label (Optional)</p>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="A name for your shadow (Optional)"
-              className="w-full bg-transparent border-b border-echo-border py-6 focus:border-echo-text focus:outline-none instrument-serif text-5xl placeholder:opacity-10 transition-all"
+              placeholder="Leave empty for auto-generation..."
+              className="w-full bg-transparent border-b border-echo-border py-4 focus:outline-none instrument-serif text-4xl"
             />
           </div>
 
           <div className="space-y-4">
-            <p className="text-[10px] uppercase tracking-[0.4em] opacity-30">The Verse</p>
+            <p className="text-[10px] uppercase tracking-[0.4em] opacity-30">The Fragment</p>
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="Whisper into the void..."
-              className="w-full h-[500px] bg-transparent border border-echo-border p-10 focus:border-echo-text focus:outline-none transition-all serif-font text-3xl italic leading-relaxed placeholder:opacity-10 resize-none scrollbar-hide"
+              placeholder="Whisper your truth..."
+              className="w-full h-80 bg-transparent border border-echo-border p-10 focus:border-echo-text focus:outline-none transition-all serif-font text-2xl italic leading-relaxed"
             />
           </div>
 
-          <div className="pt-10 space-y-8">
+          {warning && (
+            <div className="p-6 border border-red-900 bg-red-950/20 text-red-200 text-sm italic">
+              {warning}
+            </div>
+          )}
+
+          <div className="space-y-8">
             <button
               onClick={handlePublish}
               disabled={isPublishing || !content.trim()}
-              className="group relative w-full py-10 bg-echo-text text-echo-bg text-[11px] uppercase tracking-[0.6em] font-black hover:bg-white transition-all disabled:opacity-20 overflow-hidden"
+              className="w-full py-8 bg-echo-text text-echo-bg text-[11px] uppercase tracking-[0.5em] font-bold hover:bg-white transition-all disabled:opacity-20"
             >
-              {isPublishing ? (
-                <div className="flex items-center justify-center space-x-6">
-                  <div className="w-4 h-4 border-2 border-echo-bg/30 border-t-echo-bg rounded-full animate-spin" />
-                  <span className="animate-pulse">Measuring Spectral Resonance...</span>
-                </div>
-              ) : (
-                'Commit Echo to the Dark'
-              )}
+              {isPublishing ? 'Detecting Resonance...' : 'Commit to the Dark'}
             </button>
-            <p className="text-center text-[10px] uppercase tracking-[0.3em] opacity-20">
-              AI evaluates genre precision (0-100%) and emotional mastery.
-            </p>
+            <p className="text-center text-[9px] uppercase tracking-[0.2em] opacity-20">AI will automatically detect Genre and calculate Mastery Score.</p>
           </div>
         </div>
       </div>

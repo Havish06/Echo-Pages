@@ -22,9 +22,9 @@ const App: React.FC = () => {
   const [adminPoems, setAdminPoems] = useState<Poem[]>([]);
   const [userPoems, setUserPoems] = useState<Poem[]>([]);
   const [currentView, setCurrentView] = useState<View>('home');
+  const [previousView, setPreviousView] = useState<View>('home');
   const [selectedPoemId, setSelectedPoemId] = useState<string | null>(null);
   const [dailyLine, setDailyLine] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   const syncStateWithHash = async () => {
@@ -33,7 +33,8 @@ const App: React.FC = () => {
     const protectedViews: View[] = ['profile', 'create', 'admin'];
     
     if (hash.startsWith('#/p/')) {
-      setSelectedPoemId(hash.replace('#/p/', ''));
+      const id = hash.replace('#/p/', '');
+      setSelectedPoemId(id);
       setCurrentView('detail');
     } else {
       const views: Record<string, View> = {
@@ -57,6 +58,7 @@ const App: React.FC = () => {
         return;
       }
 
+      setPreviousView(currentView === 'detail' ? previousView : currentView);
       setCurrentView(targetView);
       setSelectedPoemId(null);
     }
@@ -72,8 +74,6 @@ const App: React.FC = () => {
       setUserPoems(users || []);
     } catch (err) {
       console.error("Data Refresh Failed:", err);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -84,15 +84,20 @@ const App: React.FC = () => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN') {
-        setShowOnboarding(true);
+        // Fix: Show onboarding only once per session
+        if (!sessionStorage.getItem('echo_onboarded')) {
+          setShowOnboarding(true);
+          sessionStorage.setItem('echo_onboarded', 'true');
+        }
         syncStateWithHash();
       }
-      if (event === 'SIGNED_OUT') navigateTo('home');
+      if (event === 'SIGNED_OUT') {
+        sessionStorage.removeItem('echo_onboarded');
+        navigateTo('home');
+      }
     });
 
-    geminiService.getDailyLine().then(line => {
-      setDailyLine(line);
-    });
+    geminiService.getDailyLine().then(setDailyLine);
 
     return () => {
       window.removeEventListener('hashchange', syncStateWithHash);
@@ -128,10 +133,11 @@ const App: React.FC = () => {
   };
 
   const allPoems = [...adminPoems, ...userPoems];
+  // Ensure we find the correct poem even if IDs collide (rare with UUIDs but safe practice)
   const selectedPoem = allPoems.find(p => p.id === selectedPoemId);
 
   return (
-    <div className="min-h-screen flex flex-col transition-colors duration-500 bg-echo-bg text-echo-text relative">
+    <div className="min-h-screen flex flex-col bg-echo-bg text-echo-text relative">
       <Header currentView={currentView} onNavigate={navigateTo} />
       
       <main className="flex-grow">
@@ -156,7 +162,7 @@ const App: React.FC = () => {
             </div>
           )}
           {currentView === 'detail' && selectedPoem && (
-            <PoemDetail poem={selectedPoem} onBack={() => navigateTo(selectedPoem.author === 'Admin' ? 'feed' : 'user-feed')} />
+            <PoemDetail poem={selectedPoem} onBack={() => navigateTo(previousView)} />
           )}
           {currentView === 'create' && <CreatePoem onPublish={handleAddCommunityPoem} onCancel={() => navigateTo('home')} />}
           {currentView === 'leaderboard' && <Leaderboard />}
@@ -169,20 +175,20 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* Onboarding Overlay */}
       {showOnboarding && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-echo-bg/95 backdrop-blur-xl animate-fade-in p-6">
           <div className="max-w-md w-full text-center space-y-10">
-            <h2 className="instrument-serif italic text-6xl">Welcome Back</h2>
+            <h2 className="instrument-serif italic text-6xl">Echo Pages Guide</h2>
             <div className="space-y-6 serif-font text-xl opacity-70 italic">
-              <p>Your frequency has been synchronized with the collective.</p>
-              <p>Observe the curated feed, commit your own fragments to the dark, and see how your echoes resonate.</p>
+              <p>Welcome to a sanctuary for the unspoken.</p>
+              <p>Observe the curated 'Read' feed, contribute your own 'Echoes', and track your mastery in the 'Ranks'.</p>
+              <p>Every fragment you commit is evaluated for genre precision and emotional depth.</p>
             </div>
             <button 
               onClick={() => setShowOnboarding(false)}
               className="w-full py-5 border border-echo-text/20 hover:border-echo-text transition-all text-[11px] uppercase tracking-[0.4em]"
             >
-              Enter the Void
+              Begin Observation
             </button>
           </div>
         </div>
