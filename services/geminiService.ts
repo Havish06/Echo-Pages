@@ -4,12 +4,17 @@ import { PoemMetadata } from "../types.ts";
 
 export const geminiService = {
   async getDailyLine(): Promise<string> {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: "Generate one hauntingly beautiful, short, introspective line of poetry. No quotation marks. No explanation.",
-    });
-    return response.text?.trim() || "Silence is the only thing we truly own.";
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: "Generate one hauntingly beautiful, short, introspective line of poetry. No quotation marks. No explanation.",
+      });
+      return response.text?.trim() || "Silence is the only thing we truly own.";
+    } catch (error) {
+      console.error("Daily Line Fetch Error:", error);
+      return "The void is quiet today, yet full of echoes.";
+    }
   },
 
   async analyzePoem(content: string): Promise<PoemMetadata> {
