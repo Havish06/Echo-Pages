@@ -1,26 +1,66 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Poem } from '../types.ts';
+import { geminiService } from '../services/geminiService.ts';
 
 interface PoemDetailProps {
   poem: Poem;
   onBack: () => void;
 }
 
+// Audio decoding helpers for Gemini raw PCM (24kHz Mono)
+function decodeBase64(base64: string) {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
+async function decodeAudioData(
+  data: Uint8Array,
+  ctx: AudioContext,
+  sampleRate: number,
+  numChannels: number,
+): Promise<AudioBuffer> {
+  const dataInt16 = new Int16Array(data.buffer);
+  const frameCount = dataInt16.length / numChannels;
+  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+
+  for (let channel = 0; channel < numChannels; channel++) {
+    const channelData = buffer.getChannelData(channel);
+    for (let i = 0; i < frameCount; i++) {
+      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+    }
+  }
+  return buffer;
+}
+
 const PoemDetail: React.FC<PoemDetailProps> = ({ poem, onBack }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle');
+  const [audioStatus, setAudioStatus] = useState<'idle' | 'loading' | 'playing'>('idle');
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
 
   useEffect(() => {
     setIsVisible(true);
     
-    // Disable context menu to deter simple copying
+    // Aesthetic protection - discourage inspection
     const handleContextMenu = (e: MouseEvent) => e.preventDefault();
     window.addEventListener('contextmenu', handleContextMenu);
     
     return () => {
       setIsVisible(false);
       window.removeEventListener('contextmenu', handleContextMenu);
+      if (sourceRef.current) {
+        try { sourceRef.current.stop(); } catch(e) {}
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
     };
   }, []);
 
@@ -32,10 +72,54 @@ const PoemDetail: React.FC<PoemDetailProps> = ({ poem, onBack }) => {
     });
   };
 
+  const handleListen = async () => {
+    if (audioStatus !== 'idle') {
+      if (audioStatus === 'playing' && sourceRef.current) {
+        try { sourceRef.current.stop(); } catch(e) {}
+        setAudioStatus('idle');
+      }
+      return;
+    }
+
+    setAudioStatus('loading');
+    const base64Audio = await geminiService.getPoemAudio(poem.title, poem.content);
+    
+    if (!base64Audio) {
+      setAudioStatus('idle');
+      alert("The spectral voice could not be summoned. Connection lost.");
+      return;
+    }
+
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+      }
+      
+      const audioData = decodeBase64(base64Audio);
+      const audioBuffer = await decodeAudioData(audioData, audioContextRef.current, 24000, 1);
+      
+      const source = audioContextRef.current.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioContextRef.current.destination);
+      
+      source.onended = () => {
+        setAudioStatus('idle');
+        sourceRef.current = null;
+      };
+
+      sourceRef.current = source;
+      source.start();
+      setAudioStatus('playing');
+    } catch (err) {
+      console.error("Playback error:", err);
+      setAudioStatus('idle');
+    }
+  };
+
   const shareToInstagram = () => {
     const text = `"${poem.title}"\n\n${poem.content}\n\n— Echoed on Echo Pages\n${window.location.origin}/#/p/${poem.id}`;
     navigator.clipboard.writeText(text);
-    alert('Poem and Unique Link copied for Instagram stories.');
+    alert('Poem and Link copied for your Stories.');
   };
 
   return (
@@ -43,7 +127,7 @@ const PoemDetail: React.FC<PoemDetailProps> = ({ poem, onBack }) => {
       className={`min-h-[90vh] relative transition-opacity duration-1000 protected-view ${isVisible ? 'opacity-100' : 'opacity-0'}`}
       style={{ background: poem.backgroundColor }}
     >
-      {/* Tiled Watermark Overlay - High density grid */}
+      {/* Visual Noise Watermark */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-[0.035] select-none z-0">
         <div className="flex flex-col space-y-4 rotate-[-20deg] scale-150 origin-center translate-x-[-10%] translate-y-[-10%]">
           {[...Array(60)].map((_, row) => (
@@ -94,31 +178,47 @@ const PoemDetail: React.FC<PoemDetailProps> = ({ poem, onBack }) => {
                     style={{ width: `${poem.emotionalWeight}%` }}
                   />
                 </div>
-                <div className="text-[10px] opacity-30">{poem.emotionalWeight}% / Introspective</div>
+                <div className="text-[10px] opacity-30">{poem.emotionalWeight}% / {poem.tone}</div>
               </div>
 
-              <div className="flex space-x-4">
+              <div className="flex flex-wrap gap-4">
+                <button 
+                  onClick={handleListen}
+                  disabled={audioStatus === 'loading'}
+                  className={`flex items-center space-x-3 text-[10px] uppercase tracking-widest border px-6 py-3 transition-all ${
+                    audioStatus === 'playing' 
+                    ? 'border-white bg-white text-black' 
+                    : 'border-white/20 hover:border-white/60 text-white'
+                  }`}
+                >
+                  {audioStatus === 'loading' ? (
+                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <div className={`w-2 h-2 rounded-full ${audioStatus === 'playing' ? 'bg-black animate-pulse' : 'bg-white/40'}`} />
+                  )}
+                  <span>{audioStatus === 'loading' ? 'Summoning...' : audioStatus === 'playing' ? 'Echoing' : 'Listen'}</span>
+                </button>
+
                 <button 
                   onClick={handleCopyLink}
-                  className="flex items-center space-x-3 text-[10px] uppercase tracking-widest border border-white/20 px-6 py-3 hover:bg-white hover:text-black transition-all duration-500"
+                  className="px-6 py-3 border border-white/10 hover:border-white/40 transition-all text-[10px] uppercase tracking-widest text-white/60 hover:text-white"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                  </svg>
-                  <span>{copyStatus === 'copied' ? 'Link Copied' : 'Copy Link'}</span>
+                  {copyStatus === 'copied' ? 'Link Captured' : 'Copy Frequency'}
                 </button>
+
                 <button 
                   onClick={shareToInstagram}
-                  className="text-[10px] uppercase tracking-widest border border-white/20 px-6 py-3 hover:bg-white hover:text-black transition-all duration-500"
+                  className="px-6 py-3 border border-white/10 hover:border-white/40 transition-all text-[10px] uppercase tracking-widest text-white/60 hover:text-white"
                 >
-                  Instagram
+                  Stories
                 </button>
               </div>
             </div>
 
-            <footer className="opacity-20 text-[10px] uppercase tracking-[0.3em] text-center pt-20">
-              Echoed by {poem.author} • {new Date(poem.timestamp).toLocaleDateString()}
-            </footer>
+            <div className="pt-6 flex justify-between items-center opacity-20 text-[10px] uppercase tracking-widest">
+              <span>Authored by @{poem.author}</span>
+              <span>{new Date(poem.timestamp).toLocaleDateString()}</span>
+            </div>
           </div>
         </article>
       </div>

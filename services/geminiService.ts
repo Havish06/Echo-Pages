@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { PoemMetadata } from "../types.ts";
 
 export const geminiService = {
@@ -66,6 +66,31 @@ export const geminiService = {
         detectedGenre: 'Free Verse',
         genreScore: 0
       };
+    }
+  },
+
+  async getPoemAudio(title: string, content: string): Promise<string | undefined> {
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const prompt = `Read this poem titled "${title}" with a slow, introspective, and hauntingly calm pace. Poem content: ${content}`;
+      
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash-preview-tts",
+        contents: [{ parts: [{ text: prompt }] }],
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: 'Kore' }, // Haunting, deeper voice
+            },
+          },
+        },
+      });
+
+      return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    } catch (error) {
+      console.error("TTS Error:", error);
+      return undefined;
     }
   }
 };

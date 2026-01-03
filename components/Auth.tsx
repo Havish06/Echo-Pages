@@ -7,6 +7,7 @@ const Auth: React.FC = () => {
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const [cooldown, setCooldown] = useState(0);
 
@@ -24,18 +25,32 @@ const Auth: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (cooldown > 0) return;
+    if (cooldown > 0 || loading) return;
+
+    // Simple validation
+    if (!email.includes('@')) {
+      setError('Please provide a valid spectral frequency (email).');
+      return;
+    }
+    if (password.length < 6) {
+      setError('The security sequence must be at least 6 characters.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
       if (isLogin) {
         await authService.login(email, password);
+        setSuccess(true);
       } else {
         await authService.signup(email, password);
         alert("Verification required. Check your inbox to activate your echo.");
       }
-      window.location.hash = '#/profile';
+      setTimeout(() => {
+        window.location.hash = '#/profile';
+      }, 1000);
     } catch (err: any) {
       if (err.message?.includes('rate limit')) {
         setError('Transmission limit reached. Please wait.');
@@ -43,70 +58,89 @@ const Auth: React.FC = () => {
       } else {
         setError(err.message || 'Identity verification failed.');
       }
-    } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
     setError('');
+    setLoading(true);
     try {
       await authService.loginWithGoogle();
     } catch (err: any) {
-      setError(`Auth failed: ${err.message}. Check Supabase URL settings.`);
+      setError(`Auth failed: ${err.message}`);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-md mx-auto py-24 px-6 space-y-12 animate-fade-in text-center min-h-[80vh] flex flex-col justify-center">
-      <div className="space-y-4">
-        <h1 className="instrument-serif italic text-6xl md:text-7xl">
-          {isLogin ? 'The Return' : 'The Beginning'}
+    <div className="max-w-lg mx-auto py-24 px-6 space-y-16 animate-fade-in text-center min-h-[85vh] flex flex-col justify-center">
+      <div className="space-y-6">
+        <h1 className="instrument-serif italic text-6xl md:text-8xl">
+          {success ? 'Recognized' : (isLogin ? 'The Return' : 'The Beginning')}
         </h1>
-        <p className="serif-font text-lg italic opacity-60">
-          {isLogin ? 'Reconnect your frequency to the void.' : 'Claim your space within the silence.'}
+        <p className="serif-font text-lg md:text-xl italic opacity-50 max-w-sm mx-auto">
+          {success 
+            ? 'Synchronizing your frequency...' 
+            : (isLogin ? 'Reconnect your frequency to the void.' : 'Claim your space within the silence.')
+          }
         </p>
       </div>
 
-      <div className="space-y-8">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-4">
-            <input 
-              type="email" 
-              placeholder="email@frequency.com"
-              className="w-full bg-transparent border-b border-echo-border py-4 focus:outline-none focus:border-echo-text text-center text-xl transition-colors placeholder:opacity-10"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-            />
-            <input 
-              type="password" 
-              placeholder="••••••••"
-              className="w-full bg-transparent border-b border-echo-border py-4 focus:outline-none focus:border-echo-text text-center text-xl transition-colors placeholder:opacity-10"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-            />
+      <div className={`space-y-10 transition-all duration-700 ${success ? 'opacity-0 scale-95' : 'opacity-100'}`}>
+        <form onSubmit={handleSubmit} className="space-y-8">
+          <div className="space-y-6 text-left">
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase tracking-[0.3em] opacity-30 ml-1">Frequency (Email)</label>
+              <input 
+                type="email" 
+                placeholder="your@frequency.com"
+                className="w-full bg-neutral-900/50 border border-echo-border rounded-none px-6 py-5 focus:outline-none focus:border-white focus:ring-1 focus:ring-white/20 transition-all text-lg placeholder:opacity-10"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase tracking-[0.3em] opacity-30 ml-1">Sequence (Password)</label>
+              <input 
+                type="password" 
+                placeholder="••••••••"
+                className="w-full bg-neutral-900/50 border border-echo-border rounded-none px-6 py-5 focus:outline-none focus:border-white focus:ring-1 focus:ring-white/20 transition-all text-lg placeholder:opacity-10"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+              />
+            </div>
           </div>
 
           <button 
             type="submit" 
             disabled={loading || cooldown > 0}
-            className="w-full py-5 bg-echo-text text-echo-bg uppercase tracking-[0.4em] text-[11px] font-bold hover:bg-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            className="group w-full py-6 bg-echo-text text-echo-bg uppercase tracking-[0.5em] text-[11px] font-bold hover:bg-white transition-all disabled:opacity-20 flex items-center justify-center space-x-4"
           >
-            {loading ? 'Transmitting...' : cooldown > 0 ? `Wait ${cooldown}s` : (isLogin ? 'Enter' : 'Create Account')}
+            {loading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-echo-bg/30 border-t-echo-bg rounded-full animate-spin" />
+                <span>Transmitting...</span>
+              </>
+            ) : (
+              <span>{cooldown > 0 ? `Await ${cooldown}s` : (isLogin ? 'Connect' : 'Generate Identity')}</span>
+            )}
           </button>
         </form>
 
-        <div className="flex items-center justify-between text-[10px] uppercase tracking-widest opacity-20">
+        <div className="flex items-center space-x-6 text-[10px] uppercase tracking-[0.4em] opacity-20">
           <div className="h-[1px] flex-grow bg-echo-border"></div>
-          <span className="px-4">Or</span>
+          <span>External Auth</span>
           <div className="h-[1px] flex-grow bg-echo-border"></div>
         </div>
 
         <button 
           onClick={handleGoogleLogin}
-          className="w-full py-4 border border-echo-border hover:border-echo-text transition-all flex items-center justify-center space-x-3 text-[11px] uppercase tracking-widest font-medium"
+          disabled={loading}
+          className="w-full py-5 border border-echo-border hover:border-echo-text transition-all flex items-center justify-center space-x-4 text-[10px] uppercase tracking-widest font-medium disabled:opacity-20"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24">
             <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -118,7 +152,7 @@ const Auth: React.FC = () => {
         </button>
 
         <button 
-          onClick={() => setIsLogin(!isLogin)}
+          onClick={() => { setIsLogin(!isLogin); setError(''); }}
           className="text-[10px] uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity border-b border-transparent hover:border-echo-text pb-1"
         >
           {isLogin ? "No identity? Begin here." : "Already recognized? Return."}
@@ -127,7 +161,7 @@ const Auth: React.FC = () => {
 
       {error && (
         <div className="p-6 border border-red-900/20 bg-red-900/5 animate-fade-in space-y-2">
-          <p className="text-[10px] tracking-widest uppercase text-red-400 font-bold">Transmission Blocked</p>
+          <p className="text-[10px] tracking-widest uppercase text-red-400 font-bold">Protocol Error</p>
           <p className="text-[11px] opacity-60 leading-relaxed text-echo-text">{error}</p>
         </div>
       )}

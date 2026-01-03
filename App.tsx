@@ -25,11 +25,10 @@ const App: React.FC = () => {
   const [selectedPoemId, setSelectedPoemId] = useState<string | null>(null);
   const [dailyLine, setDailyLine] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const syncStateWithHash = async () => {
     const hash = window.location.hash || '#/';
-    
-    // Auth Guard logic
     const { data: { session } } = await supabase.auth.getSession();
     const protectedViews: View[] = ['profile', 'create', 'admin'];
     
@@ -84,7 +83,10 @@ const App: React.FC = () => {
     refreshData();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN') syncStateWithHash();
+      if (event === 'SIGNED_IN') {
+        setShowOnboarding(true);
+        syncStateWithHash();
+      }
       if (event === 'SIGNED_OUT') navigateTo('home');
     });
 
@@ -125,19 +127,11 @@ const App: React.FC = () => {
     }
   };
 
-  const handleAddCuratePoem = async (newPoem: Partial<Poem>) => {
-    const savedPoem = await supabaseService.createAdminCurate(newPoem);
-    if (savedPoem) {
-      setAdminPoems(prev => [savedPoem, ...prev]);
-      navigateTo('feed');
-    }
-  };
-
   const allPoems = [...adminPoems, ...userPoems];
   const selectedPoem = allPoems.find(p => p.id === selectedPoemId);
 
   return (
-    <div className="min-h-screen flex flex-col transition-colors duration-500 bg-echo-bg text-echo-text">
+    <div className="min-h-screen flex flex-col transition-colors duration-500 bg-echo-bg text-echo-text relative">
       <Header currentView={currentView} onNavigate={navigateTo} />
       
       <main className="flex-grow">
@@ -171,9 +165,28 @@ const App: React.FC = () => {
           {currentView === 'about' && <About />}
           {currentView === 'contact' && <Contact />}
           {currentView === 'privacy' && <Privacy />}
-          {currentView === 'admin' && <AdminPortal onPublish={handleAddCuratePoem} onCancel={() => navigateTo('home')} />}
+          {currentView === 'admin' && <AdminPortal onPublish={() => {}} onCancel={() => navigateTo('home')} />}
         </div>
       </main>
+
+      {/* Onboarding Overlay */}
+      {showOnboarding && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-echo-bg/95 backdrop-blur-xl animate-fade-in p-6">
+          <div className="max-w-md w-full text-center space-y-10">
+            <h2 className="instrument-serif italic text-6xl">Welcome Back</h2>
+            <div className="space-y-6 serif-font text-xl opacity-70 italic">
+              <p>Your frequency has been synchronized with the collective.</p>
+              <p>Observe the curated feed, commit your own fragments to the dark, and see how your echoes resonate.</p>
+            </div>
+            <button 
+              onClick={() => setShowOnboarding(false)}
+              className="w-full py-5 border border-echo-text/20 hover:border-echo-text transition-all text-[11px] uppercase tracking-[0.4em]"
+            >
+              Enter the Void
+            </button>
+          </div>
+        </div>
+      )}
 
       <Footer onAdminClick={() => navigateTo('admin')} onContactClick={() => navigateTo('contact')} onPrivacyClick={() => navigateTo('privacy')} />
     </div>
