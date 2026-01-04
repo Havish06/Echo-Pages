@@ -24,10 +24,21 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('home');
   const [previousView, setPreviousView] = useState<View>('home');
   const [selectedPoemId, setSelectedPoemId] = useState<string | null>(null);
-  const [dailyLine, setDailyLine] = useState<string>('');
+  
+  const [dailyLine, setDailyLine] = useState<string>(() => {
+    return localStorage.getItem('echo_daily_line_v1') || "Silence is the only thing we truly own.";
+  });
+
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  const syncStateWithHash = async () => {
+  const syncStateWithHash = async (isInitialLoad = false) => {
+    if (isInitialLoad) {
+      window.location.hash = '#/';
+      setCurrentView('home');
+      setSelectedPoemId(null);
+      return;
+    }
+
     const hash = window.location.hash || '#/';
     const { data: { session } } = await supabase.auth.getSession();
     const protectedViews: View[] = ['profile', 'create', 'admin'];
@@ -58,7 +69,9 @@ const App: React.FC = () => {
         return;
       }
 
-      setPreviousView(currentView === 'detail' ? previousView : currentView);
+      if (currentView !== 'detail') {
+        setPreviousView(currentView);
+      }
       setCurrentView(targetView);
       setSelectedPoemId(null);
     }
@@ -78,18 +91,23 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    window.addEventListener('hashchange', syncStateWithHash);
-    syncStateWithHash();
+    const handleHashChange = () => syncStateWithHash(false);
+    window.addEventListener('hashchange', handleHashChange);
+    
+    syncStateWithHash(true);
     refreshData();
+
+    geminiService.getDailyLine().then(line => {
+      setDailyLine(line);
+    });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN') {
-        // Fix: Show onboarding only once per session
         if (!sessionStorage.getItem('echo_onboarded')) {
           setShowOnboarding(true);
           sessionStorage.setItem('echo_onboarded', 'true');
         }
-        syncStateWithHash();
+        syncStateWithHash(false);
       }
       if (event === 'SIGNED_OUT') {
         sessionStorage.removeItem('echo_onboarded');
@@ -97,10 +115,8 @@ const App: React.FC = () => {
       }
     });
 
-    geminiService.getDailyLine().then(setDailyLine);
-
     return () => {
-      window.removeEventListener('hashchange', syncStateWithHash);
+      window.removeEventListener('hashchange', handleHashChange);
       subscription.unsubscribe();
     };
   }, []);
@@ -132,9 +148,25 @@ const App: React.FC = () => {
     }
   };
 
+  const handleAddAdminPoem = async (newPoem: Partial<Poem>) => {
+    const savedPoem = await supabaseService.createAdminPoem(newPoem);
+    if (savedPoem) {
+      setAdminPoems(prev => [savedPoem, ...prev]);
+      navigateTo('feed');
+    }
+  };
+
   const allPoems = [...adminPoems, ...userPoems];
-  // Ensure we find the correct poem even if IDs collide (rare with UUIDs but safe practice)
   const selectedPoem = allPoems.find(p => p.id === selectedPoemId);
+
+  const handleBackFromDetail = (poem: Poem) => {
+    if (previousView === 'feed' || previousView === 'user-feed') {
+      navigateTo(previousView);
+    } else {
+      const fallback = poem.author === 'Admin' ? 'feed' : 'user-feed';
+      navigateTo(fallback);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-echo-bg text-echo-text relative">
@@ -149,7 +181,11 @@ const App: React.FC = () => {
                 <h2 className="instrument-serif text-5xl italic opacity-90">Read</h2>
                 <p className="text-[10px] uppercase tracking-[0.3em] opacity-30">Curated Curiosities</p>
               </header>
-              <Feed poems={adminPoems} onSelectPoem={(id) => navigateTo('detail', id)} />
+              <Feed 
+                variant="grid" 
+                poems={adminPoems} 
+                onSelectPoem={(id) => navigateTo('detail', id)} 
+              />
             </div>
           )}
           {currentView === 'user-feed' && (
@@ -158,11 +194,15 @@ const App: React.FC = () => {
                 <h2 className="instrument-serif text-5xl italic opacity-90">Echoes</h2>
                 <p className="text-[10px] uppercase tracking-[0.3em] opacity-30">The Community Stream</p>
               </header>
-              <Feed poems={userPoems} onSelectPoem={(id) => navigateTo('detail', id)} />
+              <Feed 
+                variant="grid" 
+                poems={userPoems} 
+                onSelectPoem={(id) => navigateTo('detail', id)} 
+              />
             </div>
           )}
           {currentView === 'detail' && selectedPoem && (
-            <PoemDetail poem={selectedPoem} onBack={() => navigateTo(previousView)} />
+            <PoemDetail poem={selectedPoem} onBack={() => handleBackFromDetail(selectedPoem)} />
           )}
           {currentView === 'create' && <CreatePoem onPublish={handleAddCommunityPoem} onCancel={() => navigateTo('home')} />}
           {currentView === 'leaderboard' && <Leaderboard />}
@@ -171,7 +211,7 @@ const App: React.FC = () => {
           {currentView === 'about' && <About />}
           {currentView === 'contact' && <Contact />}
           {currentView === 'privacy' && <Privacy />}
-          {currentView === 'admin' && <AdminPortal onPublish={() => {}} onCancel={() => navigateTo('home')} />}
+          {currentView === 'admin' && <AdminPortal onPublish={handleAddAdminPoem} onCancel={() => navigateTo('home')} />}
         </div>
       </main>
 

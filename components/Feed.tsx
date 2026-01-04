@@ -5,48 +5,59 @@ import { Poem } from '../types.ts';
 interface FeedProps {
   poems: Poem[];
   onSelectPoem: (id: string) => void;
+  variant?: 'list' | 'grid';
 }
 
-const Feed: React.FC<FeedProps> = ({ poems, onSelectPoem }) => {
+const Feed: React.FC<FeedProps> = ({ poems, onSelectPoem, variant = 'grid' }) => {
+  const formatDate = (timestamp: number) => {
+    const date = new Date(timestamp);
+    const d = String(date.getDate()).padStart(2, '0');
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const y = date.getFullYear();
+    return `${d}-${m}-${y}`;
+  };
+
+  const containerClass = "max-w-7xl mx-auto px-6 py-12";
+  const gridClass = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10";
+
   return (
-    <div className="max-w-7xl mx-auto px-6 py-20">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+    <div className={containerClass}>
+      <div className={gridClass}>
         {poems.map((poem, index) => (
           <article 
             key={poem.id}
             onClick={() => onSelectPoem(poem.id)}
-            className="group cursor-pointer border border-echo-border p-10 flex flex-col h-full hover:border-echo-text/20 transition-all duration-700 hover:-translate-y-1 animate-fade-in"
+            className="group cursor-pointer border border-echo-border p-10 flex flex-col justify-between hover:bg-white/[0.02] transition-colors animate-fade-in"
             style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}
           >
-            <div className="flex justify-between items-start mb-8">
-              <div className="flex flex-col space-y-1">
-                <span className="text-[10px] uppercase tracking-widest opacity-40 font-medium">
-                  {poem.genre}
-                </span>
-                <span className="text-[10px] italic opacity-30">@{poem.author}</span>
+            <div className="space-y-10">
+              <div className="text-[11px] uppercase tracking-[0.3em] font-bold text-echo-text/80">
+                {poem.genre || 'Poetry'} · {poem.score || 0}% Match
               </div>
-              <div className="text-right">
-                <div className="text-xs font-bold opacity-60">{poem.score}% Match</div>
-                <div className="w-12 h-[2px] bg-white/5 mt-1 overflow-hidden">
-                  <div className="h-full bg-white/30" style={{ width: `${poem.score}%` }} />
-                </div>
-              </div>
+
+              <h2 className="instrument-serif text-3xl md:text-4xl uppercase tracking-tight leading-none group-hover:italic transition-all duration-300">
+                {poem.title || 'UNTITLED FRAGMENT'}
+              </h2>
             </div>
 
-            <h2 className="instrument-serif text-3xl mb-12 group-hover:italic transition-all duration-500">
-              {poem.title}
-            </h2>
+            <div className="space-y-6 mt-16">
+              <hr className="border-echo-border opacity-50" />
 
-            <div className="mt-auto flex items-center justify-between pt-10 border-t border-echo-border/5 opacity-40 group-hover:opacity-100 transition-opacity duration-700">
-              <span className="text-[10px] uppercase tracking-widest font-medium">Observe Echo</span>
-              <span className="text-[10px] opacity-20">{new Date(poem.timestamp).toLocaleDateString()}</span>
+              <div className="flex justify-between items-center text-[10px] uppercase tracking-widest font-medium text-echo-text/50">
+                <span className="italic font-normal">Posted by @{poem.author}</span>
+                <span className="font-mono">{formatDate(poem.timestamp)}</span>
+              </div>
+
+              <div className="text-[10px] uppercase tracking-[0.5em] font-bold text-echo-text/20 group-hover:text-echo-text/80 transition-all pt-2">
+                Observe Echo
+              </div>
             </div>
           </article>
         ))}
       </div>
       
       {poems.length === 0 && (
-        <div className="text-center py-40 opacity-30 instrument-serif italic text-2xl">
+        <div className="text-center py-40 opacity-20 instrument-serif italic text-2xl">
           The void remains empty.
         </div>
       )}

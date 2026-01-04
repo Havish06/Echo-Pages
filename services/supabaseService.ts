@@ -8,7 +8,7 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export const authService = {
-  async signup(email, password, displayName) {
+  async signup(email: string, password: string, displayName: string) {
     const { data, error } = await supabase.auth.signUp({ 
       email, 
       password,
@@ -16,13 +16,27 @@ export const authService = {
         data: { display_name: displayName || email.split('@')[0] }
       }
     });
-    if (error) throw error;
+
+    if (error) {
+      const msg = error.message.toLowerCase();
+      if (msg.includes('already registered') || msg.includes('already exists')) {
+        throw new Error("Account already exists. Please log in.");
+      }
+      throw new Error(error.message || "Identity initialization failed.");
+    }
+    
     return data;
   },
 
-  async login(email, password) {
+  async login(email: string, password: string) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    if (error) {
+      const msg = error.message.toLowerCase();
+      if (msg.includes('invalid login credentials')) {
+        throw new Error("Frequency mismatch. Please check your credentials.");
+      }
+      throw new Error(error.message || "Verification failed.");
+    }
     return data;
   },
 
@@ -36,7 +50,7 @@ export const authService = {
 
   async logout() {
     await supabase.auth.signOut();
-    window.location.hash = '#/auth';
+    window.location.hash = '#/';
   },
 
   async updateDisplayName(newName: string) {
@@ -57,9 +71,9 @@ const mapFromDb = (data: any): Poem => ({
   timestamp: data.created_at ? new Date(data.created_at).getTime() : Date.now(),
   emotionTag: data.emotion_tag || 'Echo',
   emotionalWeight: Number(data.emotional_weight) || 50,
-  score: Number(data.score) || 75,
+  score: data.score !== undefined && data.score !== null ? Number(data.score) : 0,
   tone: (data.tone as any) || 'melancholic',
-  genre: data.genre || 'Free Verse',
+  genre: data.genre || 'Echo',
   backgroundColor: data.background_color || 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)'
 });
 
@@ -88,8 +102,8 @@ export const supabaseService = {
       user_id: poem.userId,
       emotion_tag: poem.emotionTag,
       emotional_weight: poem.emotionalWeight,
-      score: poem.score || 75,
-      genre: poem.genre,
+      score: poem.score ?? 0,
+      genre: poem.genre || 'Echo',
       tone: poem.tone || 'melancholic',
       background_color: poem.backgroundColor,
     };
@@ -98,29 +112,50 @@ export const supabaseService = {
     return data ? mapFromDb(data[0]) : null;
   },
 
+  async createAdminPoem(poem: Partial<Poem>): Promise<Poem | null> {
+    const payload = {
+      title: poem.title,
+      content: poem.content,
+      author: 'Admin',
+      user_id: 'admin',
+      emotion_tag: poem.emotionTag,
+      emotional_weight: poem.emotionalWeight,
+      score: poem.score ?? 100,
+      genre: poem.genre || 'Curated',
+      tone: poem.tone || 'melancholic',
+      background_color: poem.backgroundColor,
+    };
+    const { data, error } = await supabase.from('admin_poems').insert([payload]).select();
+    if (error) return null;
+    return data ? mapFromDb(data[0]) : null;
+  },
+
   async getLeaderboard(): Promise<LeaderboardEntry[]> {
     try {
+      // Aggregate real scores from the database
       const { data, error } = await supabase.from('echoes').select('user_id, author, score');
       if (error) return [];
       
-      const userMap: Record<string, { total: number, count: number, name: string }> = {};
+      const userMap: Record<string, { totalScore: number, count: number, name: string }> = {};
       data?.forEach(d => {
         if (!d.user_id) return;
-        if (!userMap[d.user_id]) userMap[d.user_id] = { total: 0, count: 0, name: d.author || 'Anonymous' };
-        userMap[d.user_id].total += 75; // MVP Requirement: Static score of 75
+        if (!userMap[d.user_id]) {
+          userMap[d.user_id] = { totalScore: 0, count: 0, name: d.author || 'Anonymous' };
+        }
+        userMap[d.user_id].totalScore += (d.score ?? 0);
         userMap[d.user_id].count += 1;
       });
 
       return Object.entries(userMap)
         .map(([id, val]) => ({
           userId: id,
-          username: val.name, // In this app context, author is display name
+          username: val.name,
           displayName: val.name,
-          score: 75,
+          score: Math.round(val.totalScore / val.count),
           poemCount: val.count
         }))
-        .sort((a, b) => b.poemCount - a.poemCount)
-        .slice(0, 10); // MVP: Top 10
+        .sort((a, b) => b.poemCount - a.poemCount || b.score - a.score)
+        .slice(0, 10);
     } catch (e) { return []; }
   }
 };

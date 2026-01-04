@@ -6,7 +6,7 @@ const Profile: React.FC = () => {
   const [user, setUser] = useState<any>(null);
   const [displayName, setDisplayName] = useState('');
   const [isEditing, setIsEditing] = useState(false);
-  const [stats, setStats] = useState({ total: 0, avg: 75 });
+  const [stats, setStats] = useState({ total: 0, avg: 0 });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -18,9 +18,13 @@ const Profile: React.FC = () => {
   }, []);
 
   const loadUserStats = async (userId: string) => {
-    const { data } = await supabase.from('echoes').select('score').eq('user_id', userId);
-    if (data && data.length > 0) {
-      setStats({ total: data.length, avg: 75 });
+    const { data, error } = await supabase.from('echoes').select('score').eq('user_id', userId);
+    if (!error && data && data.length > 0) {
+      const totalScore = data.reduce((acc, curr) => acc + (curr.score || 0), 0);
+      const average = Math.round(totalScore / data.length);
+      setStats({ total: data.length, avg: average });
+    } else {
+      setStats({ total: 0, avg: 0 });
     }
   };
 

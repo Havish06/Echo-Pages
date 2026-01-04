@@ -5,6 +5,7 @@ import { supabase, authService } from '../services/supabaseService.ts';
 const Auth: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -22,11 +23,15 @@ const Auth: React.FC = () => {
     if (loading) return;
 
     if (!email.includes('@')) {
-      setError('A valid frequency is required.');
+      setError('A valid frequency (email) is required.');
       return;
     }
     if (password.length < 6) {
       setError('Sequence must be at least 6 characters.');
+      return;
+    }
+    if (!isLogin && !displayName.trim()) {
+      setError('An identity name is required for registration.');
       return;
     }
 
@@ -37,16 +42,19 @@ const Auth: React.FC = () => {
       if (isLogin) {
         await authService.login(email, password);
         setSuccess(true);
+        setTimeout(() => {
+          window.location.hash = '#/profile';
+        }, 800);
       } else {
         await authService.signup(email, password, displayName);
-        setSuccess(true);
-        alert("Success. Check your frequency for verification.");
+        alert("Identity initialized successfully. Please log in to confirm your frequency.");
+        setIsLogin(true);
+        setLoading(false);
+        setPassword('');
       }
-      setTimeout(() => {
-        window.location.hash = '#/profile';
-      }, 1500);
     } catch (err: any) {
-      setError(err.message || 'Identity verification failed.');
+      const errorMessage = typeof err === 'string' ? err : (err?.message || 'Identity verification failed.');
+      setError(errorMessage);
       setLoading(false);
     }
   };
@@ -57,7 +65,7 @@ const Auth: React.FC = () => {
     try {
       await authService.loginWithGoogle();
     } catch (err: any) {
-      setError(`Auth failed: ${err.message}`);
+      setError(err?.message || 'Google authentication failed.');
       setLoading(false);
     }
   };
@@ -66,14 +74,14 @@ const Auth: React.FC = () => {
     <div className="max-w-md mx-auto py-24 px-6 space-y-12 animate-fade-in text-center min-h-[80vh] flex flex-col justify-center">
       <div className="space-y-4">
         <h1 className="instrument-serif italic text-6xl">
-          {success ? 'Recognized' : (isLogin ? 'Welcome back' : 'New Identity')}
+          {success && isLogin ? 'Recognized' : (isLogin ? 'Welcome back' : 'New Identity')}
         </h1>
         <p className="serif-font text-lg italic opacity-40">
           {isLogin ? 'Reconnect with the collective silence.' : 'Claim your space within the void.'}
         </p>
       </div>
 
-      <div className={`space-y-8 transition-all duration-700 ${success ? 'opacity-0 scale-95' : 'opacity-100'}`}>
+      <div className={`space-y-8 transition-all duration-700 ${success && isLogin ? 'opacity-0 scale-95' : 'opacity-100'}`}>
         <form onSubmit={handleSubmit} className="space-y-6 text-left">
           {!isLogin && (
             <div className="space-y-2">
@@ -103,15 +111,40 @@ const Auth: React.FC = () => {
           
           <div className="space-y-2">
             <label className="text-[10px] uppercase tracking-widest opacity-30 ml-1">Password</label>
-            <input 
-              type="password" 
-              placeholder="••••••••"
-              className="w-full bg-neutral-900 border border-echo-border px-5 py-4 focus:outline-none focus:border-white transition-all text-echo-text"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-            />
+            <div className="relative group">
+              <input 
+                type={showPassword ? "text" : "password"} 
+                placeholder="••••••••"
+                className="w-full bg-neutral-900 border border-echo-border px-5 py-4 pr-12 focus:outline-none focus:border-white transition-all text-echo-text"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 opacity-20 hover:opacity-100 transition-opacity p-1"
+                title={showPassword ? "Hide Sequence" : "Reveal Sequence"}
+              >
+                {showPassword ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
+
+          {error && (
+            <div className="p-4 bg-red-950/20 border border-red-900 text-red-200 text-xs animate-fade-in font-medium">
+              {error}
+            </div>
+          )}
 
           <button 
             type="submit" 
@@ -121,7 +154,7 @@ const Auth: React.FC = () => {
             {loading ? (
               <>
                 <div className="w-3 h-3 border-2 border-echo-bg/30 border-t-echo-bg rounded-full animate-spin" />
-                <span>Signing you in...</span>
+                <span>Transmitting...</span>
               </>
             ) : (
               <span>{isLogin ? 'Login' : 'Sign Up'}</span>
@@ -145,18 +178,12 @@ const Auth: React.FC = () => {
         </button>
 
         <button 
-          onClick={() => { setIsLogin(!isLogin); setError(''); }}
+          onClick={() => { setIsLogin(!isLogin); setError(''); setShowPassword(false); }}
           className="text-[10px] uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity"
         >
           {isLogin ? "Need an identity?" : "Already recognized?"}
         </button>
       </div>
-
-      {error && (
-        <div className="p-4 bg-red-950/20 border border-red-900 text-red-200 text-xs animate-fade-in">
-          {error}
-        </div>
-      )}
     </div>
   );
 };
