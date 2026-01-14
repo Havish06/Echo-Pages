@@ -16,7 +16,7 @@ const FALLBACK_SEEDS = [
   "Shadows are just light that lost its way home."
 ];
 
-const GENRE_POOL = "Lyric, Narrative, Epic, Dramatic, Elegy, Ode, Sonnet, Ballad, Pastoral, Mock-Epic, Epic Simile, Love, Romance, Heartbreak, Grief, Mourning, Joy, Celebration, Loneliness, Hope, Despair, Angst, Nostalgia, Regret, Desire, Devotion, Spiritual, Religious, Devotional, Mystical, Philosophical, Existential, Metaphysical, Moral, Didactic, Political, Protest, Revolutionary, Feminist, Social Justice, Anti-War, Environmental, Eco-Poetry, Satirical, Ironical, Nature, Romantic Nature, Ecological, Scientific, Space, Cosmic, Astronomical, Technological, AI Poetry, Cyber Poetry, Free Verse, Blank Verse, Concrete Poetry, Shape Poetry, Visual Poetry, Experimental, Surreal, Absurdist, Stream of Consciousness, Fragmentary, Gothic, Dark Poetry, Horror, Macabre, Psychological, Trauma Poetry, Death Poetry, Madness Poetry, Humorous, Comic, Parody, Limerick, Nonsense Poetry, Light Verse, Satire, Confessional, Personal, Autobiographical, Identity Poetry, Gender Poetry, Sexuality Poetry, Cultural Poetry, Diaspora Poetry, Coming-of-Age, Depression Poetry, Anxiety Poetry, Healing Poetry, Recovery Poetry, Mental Health Poetry, Folk Poetry, Tribal Poetry, Indigenous Poetry, Classical Poetry, Sanskrit Poetry, Tamil Poetry, Urdu Poetry, Persian Poetry, Ghazal, Haiku, Tanka, Villanelle, Pantoum, Sestina, Sonnet Sequence, Epic Cycle, Spoken Word, Slam Poetry, Performance Poetry, Rap Poetry, Hip-Hop Poetry, Meta-Poetry, Ars Poetica, Conceptual Poetry, Constraint-Based Poetry, Oulipo Poetry, Ekphrastic Poetry, Found Poetry, Erasure Poetry, Prose Poetry, Micro-Poetry, Flash Poetry, Minimalist Poetry, Maximalist Poetry, Narrative Verse, Verse Novel, Didactic Verse, Allegorical Poetry, Mythological Poetry, Legendary Poetry, Folklore Poetry, Fable Poetry, Beast Poetry, War Poetry, Soldier Poetry, Patriotism Poetry, Nationalist Poetry, Exile Poetry, Migration Poetry, Refugee Poetry, Urban Poetry, Street Poetry, Rural Poetry, Pastoral Modernism, Dystopian Poetry, Utopian Poetry, Apocalyptic Poetry, Post-Apocalyptic Poetry, Sci-Fi Poetry, Fantasy Poetry, Speculative Poetry, Time Poetry, Memory Poetry, Dream Poetry, Lucid Poetry, Sleep Poetry, Night Poetry, Light Poetry, Silence Poetry, Sound Poetry, Phonetic Poetry, Language Poetry, L=A=N=G=U=A=G=E Poetry, Digital Poetry, Hypertext Poetry, Code Poetry, Glitch Poetry, Internet Poetry, Meme Poetry";
+const GENRE_POOL = "Noir, Ethereal, Minimalist, Free Verse, Prose, Haiku, Lyric, Narrative, Epic, Dramatic, Elegy, Ode, Sonnet, Ballad, Pastoral, Mock-Epic, Love, Romance, Heartbreak, Grief, Mourning, Joy, Celebration, Loneliness, Hope, Despair, Angst, Nostalgia, Regret, Desire, Devotion, Spiritual, Religious, Mystical, Philosophical, Existential, Metaphysical, Didactic, Political, Protest, Revolutionary, Feminist, Social Justice, Nature, Ecological, Scientific, Space, Cosmic, Technological, AI Poetry, Cyber Poetry, Experimental, Surreal, Absurdist, Stream of Consciousness, Fragmentary, Gothic, Dark Poetry, Horror, Macabre, Psychological, Trauma Poetry, Death Poetry, Madness Poetry, Humorous, Comic, Satire, Confessional, Personal, Autobiographical, Identity Poetry, Gender Poetry, Cultural Poetry, Diaspora Poetry, Coming-of-Age, Depression Poetry, Anxiety Poetry, Healing Poetry, Recovery Poetry, Folk Poetry, Tribal Poetry, Classical Poetry, Sanskrit Poetry, Tamil Poetry, Urdu Poetry, Persian Poetry, Ghazal, Tanka, Villanelle, Pantoum, Sestina, Spoken Word, Slam Poetry, Performance Poetry, Rap Poetry, Hip-Hop Poetry, Meta-Poetry, Ars Poetica, Conceptual Poetry, Ekphrastic Poetry, Found Poetry, Erasure Poetry, Micro-Poetry, Flash Poetry, Narrative Verse, Verse Novel, Allegorical Poetry, Mythological Poetry, Folklore Poetry, Fable Poetry, War Poetry, Soldier Poetry, Patriotism Poetry, Exile Poetry, Migration Poetry, Refugee Poetry, Urban Poetry, Street Poetry, Rural Poetry, Dystopian Poetry, Utopian Poetry, Apocalyptic Poetry, Sci-Fi Poetry, Fantasy Poetry, Speculative Poetry, Time Poetry, Memory Poetry, Dream Poetry, Lucid Poetry, Sleep Poetry, Night Poetry, Light Poetry, Silence Poetry, Sound Poetry, Digital Poetry, Hypertext Poetry, Code Poetry, Glitch Poetry, Internet Poetry, Meme Poetry";
 
 export const geminiService = {
   async getDailyLine(): Promise<string> {
@@ -49,41 +49,55 @@ export const geminiService = {
   async analyzePoem(content: string, title?: string): Promise<PoemMetadata> {
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const prompt = `Perform a strict literary analysis of this poem to identify its genre and emotional resonance.
+      
+      const prompt = `Perform a high-fidelity literary analysis on this fragment.
         
-        STRICT CLASSIFICATION RULES:
-        1. Choose EXACTLY ONE primary genre from this list: [${GENRE_POOL}].
-        2. NO INVENTED GENRES. If unsure, choose the closest semantic fit.
-        3. AVOID DEFAULTS: Do NOT choose "Free Verse" or "Minimalist Poetry" unless the poem's form/structure is its primary defining characteristic.
-        4. GENRE SCORE: Calculate a percentage (55-95) representing how strongly the poem matches the chosen genre's themes and intent.
-        5. DO NOT DEFAULT to static scores (like 75%). Be precise.
-
-        Poem Title (if any): "${title || 'Untitled'}"
-        Poem Content: "${content}"`;
+        TASK:
+        1. genre: Select the SINGLE most dominant genre from the GENRE POOL provided. No generic 'Poetry' or 'Unknown'.
+        2. score: Calculate a "Genre Match Score" as an integer between 55 and 95.
+           - 90-95: Archetypal perfection.
+           - 75-89: Clear alignment.
+           - 55-74: Subtle alignment.
+        3. justification: A 1-sentence explanation of why this genre fits and the stylistic triggers for the score.
+        4. emotionTag: A 1-2 word mood descriptor.
+        5. emotionalWeight: Intensity of mood (0-100).
+        6. suggestedTitle: Generate a haunting 2-5 word title.
+        7. backgroundGradient: A CSS linear-gradient(135deg, color1, color2) matching the mood.
+        
+        GENRE POOL: [${GENRE_POOL}]
+        
+        INPUT TITLE: "${title || ''}"
+        INPUT CONTENT: "${content}"`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
+        model: 'gemini-3-flash-preview',
         contents: prompt,
         config: {
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
-              emotionTag: { type: Type.STRING, description: "Single word emotion" },
-              emotionalWeight: { type: Type.NUMBER, description: "Int 0-100" },
-              suggestedTitle: { type: Type.STRING, description: "A poetic title" },
-              backgroundGradient: { type: Type.STRING, description: "CSS linear gradient" },
+              emotionTag: { type: Type.STRING },
+              emotionalWeight: { type: Type.NUMBER },
+              suggestedTitle: { type: Type.STRING },
+              backgroundGradient: { type: Type.STRING },
               isSafe: { type: Type.BOOLEAN },
               containsRestricted: { type: Type.BOOLEAN },
-              detectedGenre: { type: Type.STRING },
-              genreScore: { type: Type.NUMBER, description: "Int 55-95" }
+              genre: { type: Type.STRING },
+              score: { type: Type.NUMBER },
+              justification: { type: Type.STRING }
             },
-            required: ["emotionTag", "emotionalWeight", "suggestedTitle", "backgroundGradient", "isSafe", "containsRestricted", "detectedGenre", "genreScore"]
+            required: ["emotionTag", "emotionalWeight", "suggestedTitle", "backgroundGradient", "isSafe", "containsRestricted", "genre", "score", "justification"]
           }
         }
       });
       
       const result = JSON.parse(response.text || '{}');
+      
+      // Strict 55-95 range
+      let finalScore = typeof result.score === 'number' ? Math.round(result.score) : 55;
+      finalScore = Math.min(95, Math.max(55, finalScore));
+
       return {
         emotionTag: result.emotionTag || 'Echo',
         emotionalWeight: result.emotionalWeight || 50,
@@ -91,11 +105,12 @@ export const geminiService = {
         backgroundGradient: result.backgroundGradient || 'linear-gradient(135deg, #1a1a1a 0%, #2d3436 100%)',
         isSafe: result.isSafe ?? true,
         containsRestricted: result.containsRestricted ?? false,
-        detectedGenre: result.detectedGenre || 'Lyric',
-        genreScore: (result.genreScore >= 55 && result.genreScore <= 95) ? result.genreScore : 72
+        genre: result.genre || 'Minimalist',
+        score: finalScore,
+        justification: result.justification || 'Analyzed through atmospheric resonance.'
       };
     } catch (error) {
-      console.error("Analysis Error:", error);
+      console.error("Spectral Analysis Error:", error);
       return {
         emotionTag: 'Echo',
         emotionalWeight: 50,
@@ -103,8 +118,9 @@ export const geminiService = {
         backgroundGradient: 'linear-gradient(135deg, #000 0%, #111 100%)',
         isSafe: true,
         containsRestricted: false,
-        detectedGenre: 'Lyric',
-        genreScore: 55
+        genre: 'Minimalist',
+        score: 55,
+        justification: 'Default classification due to processing interference.'
       };
     }
   }

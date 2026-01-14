@@ -39,12 +39,16 @@ const PoemDetail: React.FC<PoemDetailProps> = ({ poem, onBack }) => {
     textArea.select();
     try {
       document.execCommand('copy');
-      setCopyStatus('copied');
-      setTimeout(() => setCopyStatus('idle'), 2000);
+      setSuccessStatus();
     } catch (err) {
       alert("Please copy manually: " + text);
     }
     document.body.removeChild(textArea);
+  };
+
+  const setSuccessStatus = () => {
+    setCopyStatus('copied');
+    setTimeout(() => setCopyStatus('idle'), 2000);
   };
 
   const saveAsImage = () => {
@@ -59,23 +63,29 @@ const PoemDetail: React.FC<PoemDetailProps> = ({ poem, onBack }) => {
     canvas.width = width;
     canvas.height = height;
 
-    // Fill background
-    const grad = ctx.createLinearGradient(0, 0, 0, height);
-    grad.addColorStop(0, '#0a0a0a');
-    grad.addColorStop(1, '#1a1a1a');
-    ctx.fillStyle = grad;
+    // Use poem's actual background
+    const bg = poem.backgroundColor || 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)';
+    
+    if (bg.includes('gradient')) {
+      const grad = ctx.createLinearGradient(0, 0, 0, height);
+      grad.addColorStop(0, '#0a0a0a');
+      grad.addColorStop(1, '#1a1a1a');
+      ctx.fillStyle = grad;
+    } else {
+      ctx.fillStyle = bg;
+    }
     ctx.fillRect(0, 0, width, height);
 
-    // Dense, Large Watermark for Export (30px)
+    // Dense Export Watermark (Matching refined UI tiling)
     ctx.save();
     ctx.rotate(-Math.PI / 12);
     ctx.font = '30px serif';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
     ctx.textAlign = 'center';
     
-    // Ultra-tight tiling for export (140x55)
-    const stepX = 140; 
-    const stepY = 55; 
+    // Consistent tile sizing for export (220x80 for 30px font)
+    const stepX = 220; 
+    const stepY = 80; 
     for (let x = -width; x < width * 2; x += stepX) {
       for (let y = -height; y < height * 2; y += stepY) {
         ctx.fillText('ECHO PAGES', x, y);
@@ -115,7 +125,7 @@ const PoemDetail: React.FC<PoemDetailProps> = ({ poem, onBack }) => {
     ctx.fillText(`BY @${poem.author.toUpperCase()}`, width / 2, footerY);
     ctx.font = 'bold 18px sans-serif';
     ctx.letterSpacing = '3px';
-    ctx.fillText(`${(poem.genre || 'Poetry').toUpperCase()} · ${(poem.score || 0)}% MATCH`, width / 2, footerY + 50);
+    ctx.fillText(`${poem.genre.toUpperCase()} · ${poem.score}% MATCH`, width / 2, footerY + 50);
 
     try {
       const link = document.createElement('a');
@@ -129,19 +139,26 @@ const PoemDetail: React.FC<PoemDetailProps> = ({ poem, onBack }) => {
 
   return (
     <div 
-      className={`min-h-[90vh] relative transition-opacity duration-1000 ${isVisible ? 'opacity-100' : 'opacity-0'} overflow-hidden bg-black`}
+      className={`min-h-[90vh] relative transition-opacity duration-1000 ${isVisible ? 'opacity-100' : 'opacity-0'} overflow-hidden`}
+      style={{ background: poem.backgroundColor || '#0a0a0a' }}
     >
-      {/* Tiled Watermark Background - Larger 30px Font, Ultra-Dense Spacing (140x55 tile) */}
-      <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.06] select-none" style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg width='140' height='55' viewBox='0 0 140 55' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' fill='white' font-family='serif' font-size='30' letter-spacing='-0.08em' transform='rotate(-12 70 27)'%3EECHO PAGES%3C/text%3E%3C/svg%3E")`,
+      {/* 
+        Refined Tiled Watermark Background
+        - Font Size: 30px
+        - Tile Size: 220x80 (Increased width/height to avoid clumsy overlap)
+        - Density: Tightly tiled but clean
+      */}
+      <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.04] select-none" style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg width='220' height='80' viewBox='0 0 220 80' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' fill='white' font-family='serif' font-size='30' letter-spacing='0.1em' transform='rotate(-12 110 40)'%3EECHO PAGES%3C/text%3E%3C/svg%3E")`,
         backgroundRepeat: 'repeat',
-        backgroundSize: '140px 55px'
+        backgroundSize: '220px 80px'
       }}>
       </div>
 
       <canvas ref={canvasRef} className="hidden" />
 
-      <div className="max-w-3xl mx-auto px-6 py-20 haunting-gradient min-h-[90vh] flex flex-col justify-center relative z-10 text-white">
+      {/* Main Content Overlay */}
+      <div className="max-w-3xl mx-auto px-6 py-20 bg-black/20 backdrop-blur-[1px] min-h-[90vh] flex flex-col justify-center relative z-10 text-white">
         <button 
           onClick={onBack}
           className="mb-12 self-start flex items-center space-x-3 opacity-40 hover:opacity-100 transition-all text-xs uppercase tracking-[0.2em]"
@@ -156,13 +173,18 @@ const PoemDetail: React.FC<PoemDetailProps> = ({ poem, onBack }) => {
           <header className="space-y-4">
             <div className="flex items-center space-x-4">
               <span className="text-[11px] uppercase tracking-[0.3em] text-white font-bold">
-                {poem.genre || 'Poetry'} · {poem.score || 0}% Match
+                {poem.genre} · {poem.score}% Match
               </span>
               <div className="h-[1px] flex-grow bg-white/10" />
             </div>
             <h1 className="instrument-serif text-5xl md:text-7xl leading-tight italic">
               {poem.title || 'Untitled Fragment'}
             </h1>
+            {poem.justification && (
+               <p className="text-[10px] uppercase tracking-[0.2em] opacity-40 border-l border-white/20 pl-4 py-1 max-w-xl">
+                 {poem.justification}
+               </p>
+            )}
           </header>
 
           <div className="serif-font text-xl md:text-2xl leading-relaxed whitespace-pre-line italic opacity-90 min-h-[12rem]">

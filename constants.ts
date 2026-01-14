@@ -3,6 +3,13 @@ import { Poem } from './types';
 
 export const INITIAL_POEMS: Poem[] = [];
 
+export const ADMIN_CREDENTIALS = {
+  email: 'admin@echopages.com',
+  password: 'Havish@2006'
+};
+
+export const ADMIN_EMAILS = [ADMIN_CREDENTIALS.email];
+
 export const TONES = [
   { id: 'melancholic', label: 'Melancholic', icon: '🌑', gradient: 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)' },
   { id: 'hopeful', label: 'Hopeful', icon: '🌅', gradient: 'linear-gradient(135deg, #2c3e50 0%, #4ca1af 100%)' },

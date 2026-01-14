@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { View } from '../types.ts';
 import { supabase, authService } from '../services/supabaseService.ts';
+import { ADMIN_EMAILS } from '../constants.ts';
 
 interface HeaderProps {
   currentView: View;
@@ -13,12 +14,16 @@ const Header: React.FC<HeaderProps> = ({ currentView, onNavigate }) => {
   const [confirmLogout, setConfirmLogout] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const updateAuth = (session: any) => {
       setUser(session?.user ?? null);
-    });
+    };
+
+    supabase.auth.getSession().then(({ data: { session } }) => updateAuth(session));
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      updateAuth(session);
     });
+    
     return () => subscription.unsubscribe();
   }, []);
 
@@ -34,6 +39,17 @@ const Header: React.FC<HeaderProps> = ({ currentView, onNavigate }) => {
 
   const displayName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'Account';
 
+  const navItems = [
+    { id: 'feed', label: 'Read' },
+    { id: 'user-feed', label: 'Echoes' },
+    { id: 'leaderboard', label: 'Ranks' },
+  ];
+
+  // Show Create for all logged-in users
+  if (user) {
+    navItems.push({ id: 'create', label: 'Create' });
+  }
+
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-echo-bg/80 px-6 py-6 border-b border-echo-border flex flex-col md:flex-row justify-between items-center gap-6">
       <div 
@@ -46,12 +62,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, onNavigate }) => {
       </div>
 
       <nav className="flex items-center space-x-6 text-[10px] uppercase tracking-widest font-light">
-        {[
-          { id: 'feed', label: 'Read' },
-          { id: 'user-feed', label: 'Echoes' },
-          { id: 'leaderboard', label: 'Ranks' },
-          { id: 'create', label: 'Create' },
-        ].map((item) => (
+        {navItems.map((item) => (
           <button 
             key={item.id}
             onClick={() => onNavigate(item.id as View)}

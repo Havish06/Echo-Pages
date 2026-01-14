@@ -21,7 +21,9 @@ export interface Poem {
   score: number; // Genre match accuracy
   tone: 'melancholic' | 'hopeful' | 'livid' | 'nostalgic';
   genre: string;
+  justification?: string; // New: Mini explanation for the genre match
   backgroundColor: string;
+  visibility: 'read' | 'echoes';
 }
 
 export interface LeaderboardEntry {
@@ -39,8 +41,9 @@ export interface PoemMetadata {
   emotionalWeight: number;
   suggestedTitle: string;
   backgroundGradient: string;
-  genreScore: number;
-  detectedGenre: string;
+  score: number;
+  genre: string;
+  justification: string;
   isSafe: boolean;
   containsRestricted: boolean;
 }
