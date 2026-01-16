@@ -136,19 +136,19 @@ export const supabaseService = {
       background_color: poem.backgroundColor || 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)'
     };
 
-    // Only add justification if it exists to prevent schema mismatch if column is missing
     if (poem.justification) {
       payload.justification = poem.justification;
     }
     
     const { data, error } = await supabase.from('echoes').insert([payload]).select();
     if (error) {
-      console.error("Supabase Echo Creation Error Detail:", JSON.stringify(error, null, 2));
+      console.error("Supabase Echo Creation Error:", error);
       
-      // Fallback: If justification column doesn't exist, try without it
-      if (error.message?.includes('column "justification" does not exist')) {
-        delete payload.justification;
-        const retry = await supabase.from('echoes').insert([payload]).select();
+      // Defensively retry without justification if column is missing
+      if (error.code === 'PGRST204' || error.code === '42703' || error.message?.includes('justification')) {
+        const fallback = { ...payload };
+        delete fallback.justification;
+        const retry = await supabase.from('echoes').insert([fallback]).select();
         if (!retry.error && retry.data?.[0]) return mapFromDb(retry.data[0], 'echoes');
       }
       return null;
@@ -175,10 +175,11 @@ export const supabaseService = {
     
     const { data, error } = await supabase.from('admin_poems').insert([payload]).select();
     if (error) {
-      console.error("Supabase Admin Poem Creation Error Detail:", JSON.stringify(error, null, 2));
-      if (error.message?.includes('column "justification" does not exist')) {
-        delete payload.justification;
-        const retry = await supabase.from('admin_poems').insert([payload]).select();
+      console.error("Supabase Admin Poem Creation Error:", error);
+      if (error.code === 'PGRST204' || error.code === '42703' || error.message?.includes('justification')) {
+        const fallback = { ...payload };
+        delete fallback.justification;
+        const retry = await supabase.from('admin_poems').insert([fallback]).select();
         if (!retry.error && retry.data?.[0]) return mapFromDb(retry.data[0], 'read');
       }
       return null;
@@ -204,12 +205,15 @@ export const supabaseService = {
 
     const { data, error } = await supabase.from(table).update(payload).eq('id', filterId).select();
     if (error) {
-      console.error(`Supabase Update Error (${table}):`, JSON.stringify(error, null, 2));
-      // Fallback for missing justification column
-      if (error.message?.includes('column "justification" does not exist')) {
-        delete payload.justification;
-        const retry = await supabase.from(table).update(payload).eq('id', filterId).select();
+      console.error(`Supabase Update Error (${table}):`, error);
+      // Explicitly check for PGRST204 (Schema cache error) or 42703 (Undefined column)
+      if (error.code === 'PGRST204' || error.code === '42703' || error.message?.includes('justification')) {
+        const fallbackPayload = { ...payload };
+        delete fallbackPayload.justification;
+        
+        const retry = await supabase.from(table).update(fallbackPayload).eq('id', filterId).select();
         if (!retry.error && retry.data?.[0]) return mapFromDb(retry.data[0], visibility);
+        if (retry.error) console.error("Retry also failed:", retry.error);
       }
       return null;
     }

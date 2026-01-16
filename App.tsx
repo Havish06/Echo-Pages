@@ -37,13 +37,6 @@ const App: React.FC = () => {
   };
 
   const syncStateWithHash = async (isInitialLoad = false) => {
-    if (isInitialLoad) {
-      window.location.hash = '#/';
-      setCurrentView('home');
-      setSelectedPoemId(null);
-      return;
-    }
-
     const hash = window.location.hash || '#/';
     const { data: { session } } = await supabase.auth.getSession();
     const protectedViews: View[] = ['profile', 'create'];
@@ -98,7 +91,8 @@ const App: React.FC = () => {
     const handleHashChange = () => syncStateWithHash(false);
     window.addEventListener('hashchange', handleHashChange);
     
-    syncStateWithHash(true);
+    // On mount, sync hash but allow specific deep links
+    syncStateWithHash(false);
     refreshData();
 
     geminiService.getDailyLine().then(line => {
@@ -157,8 +151,8 @@ const App: React.FC = () => {
         visibility: visibility,
         emotionTag: 'Echo',
         score: 0,
-        genre: 'Echo',
-        backgroundColor: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)'
+        genre: 'Analyzing...',
+        backgroundColor: '#121212'
       };
 
       let savedPoem: Poem | null = null;
@@ -172,20 +166,19 @@ const App: React.FC = () => {
         throw new Error("Supabase rejected the fragment or returned an empty identity.");
       }
 
-      // Capture final state for background task
       const finalSavedPoem = { ...savedPoem };
       const targetPoemId = String(finalSavedPoem.id);
 
-      // Sync UI and Redirect immediately
+      // Instant UI update
       if (isUserAdmin) {
-        setAdminPoems(prev => [finalSavedPoem, ...prev].filter(p => !!p && !!p.id));
+        setAdminPoems(prev => [finalSavedPoem, ...prev]);
         navigateTo('feed');
       } else {
-        setUserPoems(prev => [finalSavedPoem, ...prev].filter(p => !!p && !!p.id));
+        setUserPoems(prev => [finalSavedPoem, ...prev]);
         navigateTo('user-feed');
       }
 
-      // Background Calibration
+      // Spectral Calibration Task
       (async () => {
         try {
           const meta = await geminiService.analyzePoem(newPoem.content || '', newPoem.title || '');
@@ -202,24 +195,24 @@ const App: React.FC = () => {
           const updated = await supabaseService.updatePoem(targetPoemId, visibility, updates);
           if (updated && updated.id) {
             if (visibility === 'read') {
-              setAdminPoems(prev => prev.map(p => (p && p.id === updated.id) ? updated : p).filter(p => !!p && !!p.id));
+              setAdminPoems(prev => prev.map(p => (p.id === updated.id) ? updated : p));
             } else {
-              setUserPoems(prev => prev.map(p => (p && p.id === updated.id) ? updated : p).filter(p => !!p && !!p.id));
+              setUserPoems(prev => prev.map(p => (p.id === updated.id) ? updated : p));
             }
           }
         } catch (bgErr) {
-          console.error("Background fragment calibration failed:", bgErr);
+          console.error("Calibration failed:", bgErr);
         }
       })();
 
     } catch (err) {
       console.error("Publication Error:", err);
-      alert("Failed to commit fragment. The frequency was interrupted.");
+      alert("Transmission interrupted. Try again.");
       throw err; 
     }
   };
 
-  const allPoems = [...adminPoems, ...userPoems].filter(p => !!p && !!p.id);
+  const allPoems = [...adminPoems, ...userPoems];
   const selectedPoem = allPoems.find(p => p.id === selectedPoemId);
 
   const handleBackFromDetail = (poem: Poem) => {
@@ -232,17 +225,21 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-echo-bg text-echo-text relative">
+    <div className="min-h-screen flex flex-col bg-echo-bg text-echo-text relative overflow-x-hidden">
       <Header currentView={currentView} onNavigate={navigateTo} />
       
       <main className="flex-grow">
-        <div className="animate-fade-in duration-500">
+        <div className="transition-all duration-700">
           {currentView === 'home' && <Home dailyLine={dailyLine} onNavigate={navigateTo} />}
           {currentView === 'feed' && (
-            <div className="pt-10">
-              <header className="mb-12 text-center space-y-2">
-                <h2 className="instrument-serif text-5xl italic opacity-90">Read</h2>
-                <p className="text-[10px] uppercase tracking-[0.3em] opacity-30">Curated Curiosities</p>
+            <div className="pt-10 animate-fade-in">
+              <header className="mb-16 text-center space-y-4">
+                <h2 className="instrument-serif text-6xl md:text-8xl italic opacity-90 tracking-tighter">Read</h2>
+                <div className="flex items-center justify-center gap-4">
+                  <div className="h-[1px] w-8 bg-white/20" />
+                  <p className="text-[10px] uppercase tracking-[0.5em] opacity-30">The Curated Fragments</p>
+                  <div className="h-[1px] w-8 bg-white/20" />
+                </div>
               </header>
               <Feed 
                 variant="grid" 
@@ -252,10 +249,14 @@ const App: React.FC = () => {
             </div>
           )}
           {currentView === 'user-feed' && (
-            <div className="pt-10">
-              <header className="mb-12 text-center space-y-2">
-                <h2 className="instrument-serif text-5xl italic opacity-90">Echoes</h2>
-                <p className="text-[10px] uppercase tracking-[0.3em] opacity-30">The Community Stream</p>
+            <div className="pt-10 animate-fade-in">
+              <header className="mb-16 text-center space-y-4">
+                <h2 className="instrument-serif text-6xl md:text-8xl italic opacity-90 tracking-tighter">Echoes</h2>
+                <div className="flex items-center justify-center gap-4">
+                  <div className="h-[1px] w-8 bg-white/20" />
+                  <p className="text-[10px] uppercase tracking-[0.5em] opacity-30">Community Resonance</p>
+                  <div className="h-[1px] w-8 bg-white/20" />
+                </div>
               </header>
               <Feed 
                 variant="grid" 
@@ -278,19 +279,19 @@ const App: React.FC = () => {
       </main>
 
       {showOnboarding && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-echo-bg/95 backdrop-blur-xl animate-fade-in p-6">
-          <div className="max-w-md w-full text-center space-y-10">
-            <h2 className="instrument-serif italic text-6xl">Echo Pages Guide</h2>
-            <div className="space-y-6 serif-font text-xl opacity-70 italic">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-echo-bg/95 backdrop-blur-2xl animate-fade-in p-6">
+          <div className="max-w-xl w-full text-center space-y-12">
+            <h2 className="instrument-serif italic text-7xl md:text-8xl tracking-tight">Echosystem</h2>
+            <div className="space-y-8 serif-font text-xl md:text-2xl opacity-60 italic leading-relaxed">
               <p>Welcome to a sanctuary for the unspoken.</p>
-              <p>Observe the curated 'Read' feed, contribute your own 'Echoes', and track your mastery in the 'Ranks'.</p>
-              <p>Every fragment you commit is evaluated for genre precision and emotional depth.</p>
+              <p>Observe the curated 'Read' feed, contribute your own 'Echoes', and track resonance in 'Ranks'.</p>
+              <p>Every fragment committed is evaluated for genre precision and emotional depth by our intelligence.</p>
             </div>
             <button 
               onClick={() => setShowOnboarding(false)}
-              className="w-full py-5 border border-echo-text/20 hover:border-echo-text transition-all text-[11px] uppercase tracking-[0.4em]"
+              className="w-full py-6 border-2 border-white/20 hover:border-white transition-all text-[12px] uppercase tracking-[0.5em] font-black"
             >
-              Begin Observation
+              Enter the Frequency
             </button>
           </div>
         </div>

@@ -11,6 +11,7 @@ const Auth: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [mailSent, setMailSent] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -47,10 +48,9 @@ const Auth: React.FC = () => {
         }, 800);
       } else {
         await authService.signup(email, password, displayName);
-        alert("Identity initialized successfully. Please log in to confirm your frequency.");
-        setIsLogin(true);
+        // Supabase might require confirmation, but we inform the user to check mail
+        setMailSent(true);
         setLoading(false);
-        setPassword('');
       }
     } catch (err: any) {
       const errorMessage = typeof err === 'string' ? err : (err?.message || 'Identity verification failed.');
@@ -69,6 +69,28 @@ const Auth: React.FC = () => {
       setLoading(false);
     }
   };
+
+  if (mailSent) {
+    return (
+      <div className="max-w-md mx-auto py-24 px-6 space-y-12 animate-fade-in text-center min-h-[80vh] flex flex-col justify-center items-center">
+        <div className="w-20 h-20 border border-echo-text/20 rounded-full flex items-center justify-center mb-8">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <h2 className="instrument-serif italic text-5xl">Transmission Sent</h2>
+        <p className="serif-font text-lg italic opacity-40">
+          Check your inbox to confirm your frequency. Once verified, you may return to claim your space.
+        </p>
+        <button 
+          onClick={() => { setMailSent(false); setIsLogin(true); }}
+          className="px-10 py-4 border border-echo-text/20 hover:border-white transition-all text-[10px] uppercase tracking-[0.4em] font-bold"
+        >
+          Return to Login
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-md mx-auto py-24 px-6 space-y-12 animate-fade-in text-center min-h-[80vh] flex flex-col justify-center">
@@ -133,7 +155,7 @@ const Auth: React.FC = () => {
                 ) : (
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                   </svg>
                 )}
               </button>
@@ -141,7 +163,7 @@ const Auth: React.FC = () => {
           </div>
 
           {error && (
-            <div className="p-4 bg-red-950/20 border border-red-900 text-red-200 text-xs animate-fade-in font-medium">
+            <div className="p-4 bg-red-950/20 border border-red-900 text-red-200 text-[10px] animate-fade-in font-medium uppercase tracking-widest">
               {error}
             </div>
           )}
@@ -157,14 +179,14 @@ const Auth: React.FC = () => {
                 <span>Transmitting...</span>
               </>
             ) : (
-              <span>{isLogin ? 'Login' : 'Sign Up'}</span>
+              <span>{isLogin ? 'Confirm Login' : 'Initialize Identity'}</span>
             )}
           </button>
         </form>
 
         <div className="flex items-center space-x-4 text-[9px] uppercase tracking-widest opacity-20">
           <div className="h-[1px] flex-grow bg-echo-border"></div>
-          <span>Or</span>
+          <span>Frequency Selection</span>
           <div className="h-[1px] flex-grow bg-echo-border"></div>
         </div>
 
@@ -179,9 +201,9 @@ const Auth: React.FC = () => {
 
         <button 
           onClick={() => { setIsLogin(!isLogin); setError(''); setShowPassword(false); }}
-          className="text-[10px] uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity"
+          className="text-[10px] uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity border-b border-transparent hover:border-white/20 pb-1"
         >
-          {isLogin ? "Need an identity?" : "Already recognized?"}
+          {isLogin ? "Need a new identity?" : "Already recognized?"}
         </button>
       </div>
     </div>

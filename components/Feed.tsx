@@ -17,6 +17,12 @@ const Feed: React.FC<FeedProps> = ({ poems, onSelectPoem, variant = 'grid' }) =>
     return `${d}-${m}-${y}`;
   };
 
+  const getDeterministicCharcoal = (id: string) => {
+    const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const charcoals = ['#1a1a1a', '#1e1e1e', '#141414', '#161616', '#1c1c1c'];
+    return charcoals[hash % charcoals.length];
+  };
+
   const containerClass = "max-w-7xl mx-auto px-6 py-12";
   const gridClass = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10";
 
@@ -27,38 +33,48 @@ const Feed: React.FC<FeedProps> = ({ poems, onSelectPoem, variant = 'grid' }) =>
           <article 
             key={poem.id}
             onClick={() => onSelectPoem(poem.id)}
-            className="group cursor-pointer border border-echo-border p-10 flex flex-col justify-between hover:scale-[1.01] transition-all duration-500 animate-fade-in relative overflow-hidden"
+            className="group cursor-pointer border border-echo-border p-8 md:p-10 flex flex-col justify-between hover:border-white/20 hover:shadow-2xl transition-all duration-500 animate-fade-in relative overflow-hidden rounded-sm"
             style={{ 
               animationDelay: `${index * 50}ms`, 
               animationFillMode: 'both',
-              background: poem.backgroundColor || 'var(--echo-bg)'
+              background: getDeterministicCharcoal(poem.id)
             }}
           >
-            {/* Subtle Overlay to ensure text readability */}
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-20 transition-opacity pointer-events-none" />
-            
-            <div className="space-y-10 relative z-10">
-              <div className="text-[11px] uppercase tracking-[0.3em] font-bold text-white/90 flex items-center gap-2">
-                <span>{poem.genre} · {poem.score === 0 ? 'Analyzing...' : `${poem.score}% Match`}</span>
+            {/* Aesthetic card structure */}
+            <div className="space-y-8 relative z-10">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase tracking-[0.3em] font-bold text-white/50 bg-white/5 px-3 py-1 rounded-full whitespace-nowrap">
+                  {poem.genre || 'Echo'}
+                  {poem.score > 0 ? ` · ${poem.score}% Match` : ''}
+                </span>
+                {poem.score > 0 && (
+                   <div className="w-1.5 h-1.5 rounded-full bg-white/20 group-hover:bg-white/60 transition-colors" />
+                )}
               </div>
 
-              <h2 className="instrument-serif text-3xl md:text-4xl uppercase tracking-tight leading-none group-hover:italic transition-all duration-300 text-white">
-                {poem.title || (poem.score === 0 ? 'WHISPERING...' : 'UNTITLED FRAGMENT')}
+              <h2 className="instrument-serif text-3xl md:text-4xl uppercase tracking-tight leading-[1.1] group-hover:italic transition-all duration-300 text-white/90 group-hover:text-white">
+                {poem.title || (poem.score === 0 ? 'WHISPERING...' : 'UNTITLED')}
               </h2>
             </div>
 
-            <div className="space-y-6 mt-16 relative z-10">
-              <hr className="border-white/10" />
+            <div className="mt-12 space-y-6 relative z-10">
+              <div className="h-[1px] w-full bg-white/5 group-hover:bg-white/10 transition-colors" />
 
-              <div className="flex justify-between items-center text-[10px] uppercase tracking-widest font-medium text-white/60">
-                <span className="italic font-normal">Posted by @{poem.author}</span>
-                <span className="font-mono">{formatDate(poem.timestamp)}</span>
+              <div className="flex justify-between items-center text-[10px] uppercase tracking-widest font-medium text-white/40">
+                <span className="italic font-normal group-hover:text-white/70">@{poem.author}</span>
+                <span className="font-mono text-[9px]">{formatDate(poem.timestamp)}</span>
               </div>
 
-              <div className="text-[10px] uppercase tracking-[0.5em] font-bold text-white/20 group-hover:text-white/80 transition-all pt-2">
-                Observe Echo
+              <div className="text-[9px] uppercase tracking-[0.5em] font-bold text-white/10 group-hover:text-white/60 transition-all pt-2 flex items-center gap-2">
+                Observe Echo 
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
               </div>
             </div>
+            
+            {/* Background texture/glow effect on hover */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
           </article>
         ))}
       </div>

@@ -53,16 +53,13 @@ export const geminiService = {
       const prompt = `Perform a high-fidelity literary analysis on this fragment.
         
         TASK:
-        1. genre: Select the SINGLE most dominant genre from the GENRE POOL provided. No generic 'Poetry' or 'Unknown'.
-        2. score: Calculate a "Genre Match Score" as an integer between 55 and 95.
-           - 90-95: Archetypal perfection.
-           - 75-89: Clear alignment.
-           - 55-74: Subtle alignment.
-        3. justification: A 1-sentence explanation of why this genre fits and the stylistic triggers for the score.
+        1. genre: Select the SINGLE most dominant genre from the GENRE POOL provided. Do not use generic terms if a more specific one fits.
+        2. score: Calculate a "Genre Match Score" as an integer between 55 and 95 indicating how strongly the text adheres to the conventions of the chosen genre.
+        3. justification: A 1-sentence mini-explanation of why this genre fits.
         4. emotionTag: A 1-2 word mood descriptor.
         5. emotionalWeight: Intensity of mood (0-100).
-        6. suggestedTitle: Generate a haunting 2-5 word title.
-        7. backgroundGradient: A CSS linear-gradient(135deg, color1, color2) matching the mood.
+        6. suggestedTitle: If the input title is blank/generic, generate a 2-5 word haunting title.
+        7. backgroundGradient: A CSS linear-gradient(135deg, color1, color2) matching the mood. Ensure it is dark but aesthetically pleasing.
         
         GENRE POOL: [${GENRE_POOL}]
         
