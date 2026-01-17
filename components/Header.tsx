@@ -45,31 +45,30 @@ const Header: React.FC<HeaderProps> = ({ currentView, onNavigate }) => {
     { id: 'leaderboard', label: 'Ranks' },
   ];
 
-  // Show Create for all logged-in users
   if (user) {
     navItems.push({ id: 'create', label: 'Create' });
   }
 
   return (
-    <header className="sticky top-0 z-50 backdrop-blur-md bg-echo-bg/80 px-6 py-6 border-b border-echo-border flex flex-col md:flex-row justify-between items-center gap-6">
+    <header className="sticky top-0 z-50 backdrop-blur-md bg-echo-bg/95 px-6 py-6 border-b border-echo-border flex flex-col md:flex-row justify-between items-center gap-6">
       <div 
         className="cursor-pointer group flex items-center space-x-2"
         onClick={() => onNavigate('home')}
       >
-        <span className="instrument-serif text-3xl font-medium tracking-tighter">
+        <span className="instrument-serif text-3xl font-medium tracking-tighter text-white">
           Echo Pages
         </span>
       </div>
 
-      <nav className="flex items-center space-x-6 text-[10px] uppercase tracking-widest font-light">
+      <nav className="flex items-center space-x-6 text-[10px] uppercase tracking-widest font-bold">
         {navItems.map((item) => (
           <button 
             key={item.id}
             onClick={() => onNavigate(item.id as View)}
             className={`hover:opacity-100 transition-opacity border-b py-1 ${
               currentView === item.id 
-              ? 'opacity-100 font-bold border-echo-text' 
-              : 'opacity-40 border-transparent hover:border-echo-muted'
+              ? 'opacity-100 font-black border-white' 
+              : 'opacity-70 border-transparent hover:border-white/50'
             }`}
           >
             {item.label}
@@ -82,13 +81,13 @@ const Header: React.FC<HeaderProps> = ({ currentView, onNavigate }) => {
           <div className="flex items-center space-x-4">
             <button 
               onClick={() => onNavigate('profile')}
-              className={`hover:opacity-100 transition-opacity ${currentView === 'profile' ? 'opacity-100' : 'opacity-40'}`}
+              className={`hover:opacity-100 transition-opacity font-black ${currentView === 'profile' ? 'opacity-100' : 'opacity-80'}`}
             >
               {displayName}
             </button>
             <button 
               onClick={handleLogoutClick}
-              className={`transition-all ${confirmLogout ? 'text-red-500 scale-110' : 'opacity-20 hover:opacity-100 hover:text-red-500'}`}
+              className={`transition-all ${confirmLogout ? 'text-red-500 scale-110' : 'opacity-60 hover:opacity-100 hover:text-red-500'}`}
               title={confirmLogout ? "Click again to confirm" : "Logout"}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -99,7 +98,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, onNavigate }) => {
         ) : (
           <button 
             onClick={() => onNavigate('auth')}
-            className="px-6 py-1.5 border border-echo-text/20 hover:border-echo-text transition-all"
+            className="px-6 py-1.5 border border-white/60 hover:border-white transition-all text-white font-bold"
           >
             Login
           </button>

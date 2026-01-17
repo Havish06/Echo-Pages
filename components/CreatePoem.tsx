@@ -43,11 +43,8 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
     };
 
     try {
-      // Trigger publish (which saves skeleton and redirects in App.tsx)
       await onPublish(finalPoem);
-      // Navigation happens in App.tsx automatically on success
     } catch (err) {
-      // If saving the skeleton fails, reset loading state so user can try again
       setIsPublishing(false);
     }
   };
@@ -55,36 +52,36 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
   return (
     <div className="max-w-4xl mx-auto px-6 py-20 animate-fade-in">
       <div className="space-y-12">
-        <header className="flex justify-between items-center border-b border-echo-border pb-8">
+        <header className="flex justify-between items-center border-b border-white/20 pb-8">
           <div>
-            <h2 className="instrument-serif text-5xl italic">Commit Fragment</h2>
-            <p className="text-[9px] uppercase tracking-widest opacity-20 mt-1">
+            <h2 className="instrument-serif text-5xl italic text-white">Commit Fragment</h2>
+            <p className="text-[10px] uppercase tracking-widest opacity-60 mt-1 font-bold text-white">
               {isAdmin ? "Direct Curated Publication" : "Sharing to Community Echoes"}
             </p>
           </div>
-          <button onClick={onCancel} className="text-[10px] uppercase tracking-widest opacity-30 hover:opacity-100 px-4 py-2 border border-echo-border transition-all">Discard</button>
+          <button onClick={onCancel} className="text-[10px] uppercase tracking-widest opacity-60 hover:opacity-100 px-6 py-2 border border-white/30 transition-all font-bold text-white">Discard</button>
         </header>
         
         <div className="space-y-16">
           <div className="space-y-4">
-            <p className="text-[10px] uppercase tracking-[0.4em] opacity-30">Label (Optional)</p>
+            <p className="text-[10px] uppercase tracking-[0.4em] opacity-70 font-bold text-white">Label (Optional)</p>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Leave empty for auto-generation..."
-              className="w-full bg-transparent border-b border-echo-border py-4 focus:outline-none instrument-serif text-4xl placeholder:opacity-10"
+              className="w-full bg-transparent border-b border-white/20 py-4 focus:border-white focus:outline-none instrument-serif text-4xl placeholder:opacity-30 text-white"
               disabled={isPublishing}
             />
           </div>
 
           <div className="space-y-4">
-            <p className="text-[10px] uppercase tracking-[0.4em] opacity-30">The Fragment</p>
+            <p className="text-[10px] uppercase tracking-[0.4em] opacity-70 font-bold text-white">The Fragment</p>
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Enter your verse..."
-              className="w-full h-80 bg-transparent border border-echo-border p-10 focus:border-echo-text focus:outline-none transition-all serif-font text-2xl italic leading-relaxed"
+              className="w-full h-80 bg-neutral-900 border border-white/20 p-10 focus:border-white focus:outline-none transition-all serif-font text-2xl italic leading-relaxed text-white placeholder:opacity-30"
               disabled={isPublishing}
             />
           </div>
@@ -93,11 +90,11 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
             <button
               onClick={handlePublish}
               disabled={isPublishing || !content.trim()}
-              className="w-full py-8 bg-echo-text text-echo-bg text-[11px] uppercase tracking-[0.5em] font-bold hover:bg-white transition-all disabled:opacity-20 flex items-center justify-center space-x-4"
+              className="w-full py-8 bg-white text-black text-[11px] uppercase tracking-[0.5em] font-black hover:bg-neutral-200 transition-all disabled:opacity-20 flex items-center justify-center space-x-4"
             >
               {isPublishing ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-echo-bg/30 border-t-echo-bg rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
                   <span>Transmitting...</span>
                 </>
               ) : (
