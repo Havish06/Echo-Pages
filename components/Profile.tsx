@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { supabase, authService } from '../services/supabaseService.ts';
 import { Poem } from '../types.ts';
@@ -68,13 +67,18 @@ const Profile: React.FC = () => {
     setAvatarUrl(`https://api.dicebear.com/7.x/shapes/svg?seed=${seed}&backgroundColor=0a0a0a,111111`);
   };
 
+  const getResonanceColor = (score: number) => {
+    if (score < 40) return '#ef4444'; 
+    if (score < 70) return '#f59e0b'; 
+    return '#10b981'; 
+  };
+
   if (!user) return null;
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-20 space-y-20 animate-fade-in">
       <header className="border-b border-echo-border pb-16 space-y-12">
         <div className="flex flex-col md:flex-row gap-12 items-center md:items-start">
-          {/* Avatar Area */}
           <div className="relative group">
             <div className="w-32 h-32 md:w-48 md:h-48 border border-white/10 rounded-sm overflow-hidden bg-neutral-900 shadow-2xl transition-all hover:border-white/30">
               {avatarUrl ? (
@@ -121,16 +125,6 @@ const Profile: React.FC = () => {
                       />
                     </div>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[8px] uppercase tracking-widest opacity-40">Avatar URL</label>
-                    <input 
-                      type="text" 
-                      value={avatarUrl}
-                      onChange={e => setAvatarUrl(e.target.value)}
-                      placeholder="https://..."
-                      className="w-full bg-neutral-900 border border-white/10 px-3 py-2 text-[10px] uppercase tracking-widest text-white/40 focus:border-white/30 outline-none"
-                    />
-                  </div>
                 </div>
                 <div className="flex gap-4 pt-4">
                   <button onClick={handleUpdateProfile} disabled={loading} className="px-6 py-2 bg-white text-black text-[10px] uppercase tracking-widest font-black hover:bg-neutral-200 transition-all">
@@ -161,7 +155,7 @@ const Profile: React.FC = () => {
 
       <section className="grid grid-cols-1 md:grid-cols-2 gap-10">
         <div className="p-10 border border-white/20 bg-white/5 space-y-6 rounded-sm">
-          <p className="text-[10px] uppercase tracking-widest opacity-90 font-black text-white">Mastery Score</p>
+          <p className="text-[10px] uppercase tracking-widest opacity-90 font-black text-white">Mean Resonance</p>
           <div className="text-7xl instrument-serif text-white font-bold">{stats.avg}%</div>
         </div>
         <div className="p-10 border border-white/20 bg-white/5 space-y-6 rounded-sm">
@@ -170,30 +164,47 @@ const Profile: React.FC = () => {
         </div>
       </section>
 
-      {/* My Echoes Management */}
       <section className="space-y-12">
         <header className="flex justify-between items-center border-b border-white/10 pb-4">
           <h2 className="instrument-serif text-4xl italic">Your Recorded Echoes</h2>
           <p className="text-[10px] uppercase tracking-widest opacity-30">{userEchoes.length} Fragments persists</p>
         </header>
 
-        <div className="space-y-4">
-          {userEchoes.map(echo => (
-            <div key={echo.id} className="flex items-center justify-between p-6 border border-white/5 hover:bg-white/[0.02] transition-all group rounded-sm">
-              <div className="space-y-1">
-                <h3 className="instrument-serif text-2xl group-hover:italic transition-all">{echo.title}</h3>
-                <p className="text-[10px] uppercase tracking-widest opacity-30">{echo.genre} · {new Date(echo.timestamp).toLocaleDateString()}</p>
+        <div className="space-y-6">
+          {userEchoes.map(echo => {
+            const resonanceColor = getResonanceColor(echo.score);
+            return (
+              <div key={echo.id} className="p-8 border border-white/5 hover:bg-white/[0.02] transition-all group rounded-sm space-y-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="space-y-2">
+                    <h3 className="instrument-serif text-3xl group-hover:italic transition-all">{echo.title}</h3>
+                    <p className="text-[10px] uppercase tracking-widest opacity-30 font-black">{echo.genre} · {new Date(echo.timestamp).toLocaleDateString()}</p>
+                  </div>
+                  
+                  <div className="flex flex-col items-end gap-2 min-w-[120px]">
+                    <span className="text-[9px] font-mono font-bold opacity-40 uppercase tracking-widest">Resonance: {echo.score}%</span>
+                    <div className="w-full md:w-32 h-1 bg-white/10 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full transition-all duration-1000"
+                        style={{ 
+                          width: `${echo.score}%`, 
+                          backgroundColor: resonanceColor,
+                          boxShadow: `0 0 10px ${resonanceColor}66`
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={() => window.location.hash = `#/p/${echo.id}`}
+                    className="px-6 py-2 border border-white/10 hover:border-white text-[9px] uppercase tracking-widest opacity-40 hover:opacity-100 transition-all font-black text-white"
+                  >
+                    Enter Frequency
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center space-x-6">
-                <button 
-                  onClick={() => window.location.hash = `#/p/${echo.id}`}
-                  className="text-[10px] uppercase tracking-widest opacity-30 hover:opacity-100 transition-all font-black"
-                >
-                  View
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
           {userEchoes.length === 0 && (
             <div className="text-center py-20 opacity-20 italic serif-font text-xl">The void awaits your first whisper.</div>
           )}
