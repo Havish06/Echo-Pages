@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Poem } from '../types.ts';
 import { supabase } from '../services/supabaseService.ts';
@@ -52,6 +53,7 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
     setSafetyError(null);
     
     try {
+      // Draft is sent to App.tsx's handlePublish which performs the final spectral analysis
       const poemDraft: Partial<Poem> = {
         title: title.trim(),
         content: content.trim(),
@@ -122,7 +124,7 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Leave blank for AI-generation..."
+              placeholder="Leave blank for auto-generation..."
               className="w-full bg-transparent border-b border-echo-border py-4 focus:outline-none instrument-serif text-4xl text-white placeholder:opacity-10 transition-all focus:border-white/40"
               disabled={isPublishing}
             />

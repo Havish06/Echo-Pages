@@ -18,20 +18,11 @@ import Leaderboard from './components/Leaderboard.tsx';
 import Auth from './components/Auth.tsx';
 import AdminPortal from './components/AdminPortal.tsx';
 
-// Expanded high-contrast atmospheric color pairs
+// Expanded high-contrast atmospheric color pairs for deterministic fallback
 const ATMOSPHERIC_PALETTE = [
   ['#0f172a', '#1e1b4b'], ['#1e1b4b', '#450a0a'], ['#020617', '#1e293b'],
   ['#2d0a0a', '#000000'], ['#1e1b0b', '#451a03'], ['#082f49', '#0c4a6e'],
-  ['#171717', '#404040'], ['#312e81', '#1e1b4b'], ['#4c1d95', '#1e1b4b'],
-  ['#064e3b', '#022c22'], ['#18181b', '#3f3f46'], ['#450a0a', '#1a1a1a'],
-  ['#022c22', '#064e3b'], ['#1e1b4b', '#2d0a45'], ['#0f172a', '#164e63'],
-  ['#2d0a0a', '#581c87'], ['#111827', '#312e81'], ['#000000', '#262626'],
-  ['#431407', '#1a0b2e'], ['#312e81', '#1e3a8a'], ['#450a0a', '#7f1d1d'],
-  ['#065f46', '#022c22'], ['#1e293b', '#0f172a'], ['#2e1065', '#4c1d95'],
-  ['#0c4a6e', '#164e63'], ['#581c87', '#2e1065'], ['#1a1a1a', '#450a0a'],
-  ['#020617', '#082f49'], ['#1e1b4b', '#312e81'], ['#1a0b2e', '#2d0a0a'],
-  ['#4c1d95', '#0f172a'], ['#162221', '#064e3b'], ['#2d1b1b', '#450a0a'],
-  ['#1e1b4b', '#1e1b4b'], ['#0f172a', '#334155'], ['#4c0519', '#881337'],
+  ['#171717', '#404040'], ['#312e81', '#1e1b4b'], ['#4c1d95', '#1e1b4b']
 ];
 
 export const getAtmosphericGradient = (id: string) => {
@@ -136,16 +127,21 @@ const App: React.FC = () => {
       const { data: { session } } = await supabase.auth.getSession();
       const isAdminUser = newPoem.userId === 'admin' || (!!session?.user?.email && ADMIN_EMAILS.includes(session.user.email));
       
-      // AI analysis - SHARED for both Read and Echoes
-      // This handles Title Generation (Feature 1), Genre Detection (Feature 2), and Safety
+      // AI analysis - shared for both Read and Echoes
       const meta = await geminiService.analyzePoem(newPoem.content || '', newPoem.title);
       
       // Final Safety Barrier
       if (!meta.isSafe) throw new Error(meta.errorReason || "Forbidden Resonance");
 
+      // MVP FEATURE 1: TITLE GENERATION
+      // If no title provided by user, always use the AI generated one.
+      const finalTitle = (newPoem.title && newPoem.title.trim() !== "" && newPoem.title.toLowerCase() !== 'untitled') 
+        ? newPoem.title 
+        : meta.suggestedTitle;
+
       const fullPoem: Partial<Poem> = {
         ...newPoem,
-        title: meta.suggestedTitle,
+        title: finalTitle,
         emotionTag: meta.emotionTag,
         emotionalWeight: meta.emotionalWeight,
         score: meta.score,

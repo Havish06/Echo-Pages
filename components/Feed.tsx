@@ -30,10 +30,11 @@ const Feed: React.FC<FeedProps> = ({ poems, onSelectPoem, currentUser }) => {
     return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
   };
 
+  // MVP FEATURE 3: Color Mapping Logic
   const getResonanceColor = (score: number) => {
-    if (score < 40) return '#ef4444'; // Red (weak)
-    if (score < 70) return '#f59e0b'; // Amber (medium)
-    return '#10b981'; // Green (strong)
+    if (score < 40) return '#ef4444'; // Red (weak match)
+    if (score < 70) return '#f59e0b'; // Yellow/Amber (medium match)
+    return '#10b981'; // Green (strong match)
   };
 
   return (
@@ -77,7 +78,6 @@ const Feed: React.FC<FeedProps> = ({ poems, onSelectPoem, currentUser }) => {
       {/* Poems Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10">
         {filteredPoems.map((poem, index) => {
-          const isAnalyzing = poem.score === 0 || poem.genre === 'Analyzing';
           const backgroundStyle = poem.backgroundColor || getAtmosphericGradient(poem.id);
           const resonanceColor = getResonanceColor(poem.score);
 
@@ -96,28 +96,24 @@ const Feed: React.FC<FeedProps> = ({ poems, onSelectPoem, currentUser }) => {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-[9px] uppercase tracking-[0.2em] font-black text-white/90">
-                      {isAnalyzing ? "Analyzing..." : poem.genre}
+                      {poem.genre}
                     </span>
-                    {!isAnalyzing && (
-                      <span className="text-[9px] font-mono font-bold text-white/60">
-                        {Math.round(poem.score)}% Match
-                      </span>
-                    )}
+                    <span className="text-[9px] font-mono font-bold text-white/60">
+                      Match: {Math.round(poem.score)}%
+                    </span>
                   </div>
                   
-                  {/* Genre Match Bar (MVP Feature 3) */}
-                  {!isAnalyzing && (
-                    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full transition-all duration-1000 ease-out"
-                        style={{ 
-                          width: `${poem.score}%`, 
-                          backgroundColor: resonanceColor,
-                          boxShadow: `0 0 8px ${resonanceColor}66`
-                        }}
-                      />
-                    </div>
-                  )}
+                  {/* MVP FEATURE 3: RESONANCE BAR */}
+                  <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full transition-all duration-1000 ease-out"
+                      style={{ 
+                        width: `${poem.score}%`, 
+                        backgroundColor: resonanceColor,
+                        boxShadow: `0 0 8px ${resonanceColor}66`
+                      }}
+                    />
+                  </div>
                 </div>
 
                 <h2 className="instrument-serif text-3xl md:text-4xl uppercase tracking-tight leading-[1.1] text-white/95 group-hover:text-white group-hover:italic transition-all duration-500">

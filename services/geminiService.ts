@@ -49,25 +49,25 @@ export const geminiService = {
   async analyzePoem(content: string, providedTitle?: string): Promise<PoemMetadata> {
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const isTitleMissing = !providedTitle || providedTitle.trim() === '' || providedTitle === 'Whispering...';
+      const isTitleMissing = !providedTitle || providedTitle.trim() === '' || providedTitle.toLowerCase() === 'untitled';
 
-      const prompt = `Act as a senior literary critic and safety sentinel for a minimalist poetry sanctuary. 
+      const prompt = `Act as a senior literary critic and safety sentinel for a minimalist poetry sanctuary called "Echo Pages". 
         Analyze this poetry fragment.
         
         STRICT SAFETY RULES:
-        - If the content contains vulgarity, slurs, explicit sexual references, or hate speech (including words like "fuck", "nigga", etc.), set isSafe: false and errorReason: "Forbidden Resonance detected."
-        - The sanctuary is for introspective art. Violence and crude language are rejected.
+        - If the content contains vulgarity, slurs, explicit sexual references, or hate speech, set isSafe: false and errorReason: "Forbidden Resonance detected."
+        - The sanctuary is for introspective art. Crude language is rejected.
 
-        CONSTRAINTS:
-        1. PREDICTED_GENRE: Choose exactly one from: [${GENRE_POOL.join(', ')}].
-        2. GENRE_SCORE: 0-100 match confidence.
-        3. SUGGESTED_TITLE: If Title is "None", generate a poetic 2-8 word title.
+        LITERARY ANALYSIS CONSTRAINTS:
+        1. PREDICTED_GENRE: You MUST choose exactly one from this list: [${GENRE_POOL.join(', ')}]. Do not create new genres.
+        2. GENRE_SCORE: Confidence percentage (0-100) of how well it fits that genre.
+        3. SUGGESTED_TITLE: Generate a poetic, evocative 2-8 word title based on the theme. Do not use generic titles like "My Poem" or "Reflections".
         4. EMOTION: One word atmospheric tag.
         5. INTENSITY: 0-100 weight.
-        6. GRADIENT: CSS 'linear-gradient(180deg, #hex1 0%, #hex2 100%)' using cinematic dark colors.
+        6. GRADIENT: CSS 'linear-gradient(180deg, #hex1 0%, #hex2 100%)' using cinematic, atmospheric dark colors.
         7. SAFETY: Boolean flags for isSafe and containsRestricted.
 
-        TITLE: "${isTitleMissing ? 'None' : providedTitle}"
+        TITLE PROVIDED: "${isTitleMissing ? 'None' : providedTitle}"
         CONTENT: "${content}"`;
 
       const response = await ai.models.generateContent({
@@ -101,7 +101,7 @@ export const geminiService = {
         justification: result.justification || "Atmospheric resonance detected.",
         emotionTag: result.emotionTag || "Echo",
         emotionalWeight: result.emotionalWeight || 50,
-        suggestedTitle: isTitleMissing ? (result.suggestedTitle || "A Fragmented Echo") : providedTitle!,
+        suggestedTitle: result.suggestedTitle || "A Fragmented Echo",
         backgroundGradient: result.backgroundGradient || "linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%)",
         isSafe: result.isSafe ?? true,
         containsRestricted: result.containsRestricted ?? false,
