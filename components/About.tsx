@@ -3,10 +3,10 @@ import React from 'react';
 
 const About: React.FC = () => {
   return (
-    <div className="max-w-3xl mx-auto px-6 py-40 space-y-20 animate-fade-in">
-      <h1 className="instrument-serif italic text-6xl md:text-8xl text-white">Manifesto</h1>
+    <div className="max-w-3xl mx-auto px-6 py-40 space-y-20">
+      <h1 className="instrument-serif italic text-6xl md:text-8xl text-echo-text">Manifesto</h1>
 
-      <div className="space-y-12 serif-font text-xl md:text-2xl leading-relaxed italic text-white/95">
+      <div className="space-y-12 serif-font text-xl md:text-2xl leading-relaxed italic text-echo-text opacity-80">
         <p>
           We are drowning in noise, but thirsty for meaning.
         </p>
@@ -21,14 +21,14 @@ const About: React.FC = () => {
           Only the echo of a voice that finally found its rhythm.
         </p>
 
-        <div className="h-[1px] w-24 bg-white/40" />
+        <div className="h-[1px] w-24 bg-echo-border" />
 
-        <p className="instrument-serif text-4xl not-italic text-white">
+        <p className="instrument-serif text-4xl not-italic">
           "Why do words echo longer than voices?"
         </p>
 
-        <p className="text-sm uppercase tracking-[0.4em] font-black opacity-80 text-white">
-          The Unspoken Collective.
+        <p className="text-sm uppercase tracking-widest not-italic opacity-40">
+          Because sound dies, but ink remembers.
         </p>
       </div>
     </div>

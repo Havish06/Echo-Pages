@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { PoemMetadata } from "../types.ts";
 
@@ -10,13 +9,16 @@ const FALLBACK_SEEDS = [
   "Silence is a conversation we aren't brave enough to have yet.",
   "We are all just ghosts wearing skin, looking for a place to haunt.",
   "Memory is a mirror that only shows the things we've lost.",
-  "The wind doesn't blow; it's just the world trying to catch its breath.",
-  "Ink is the blood of a heart that learned to speak.",
-  "We are the architects of our own hauntings.",
-  "Shadows are just light that lost its way home."
+  "The wind doesn't blow; it's just the world trying to catch its breath."
 ];
 
-const GENRE_POOL = "Noir, Ethereal, Minimalist, Free Verse, Prose, Haiku, Lyric, Narrative, Epic, Dramatic, Elegy, Ode, Sonnet, Ballad, Pastoral, Mock-Epic, Love, Romance, Heartbreak, Grief, Mourning, Joy, Celebration, Loneliness, Hope, Despair, Angst, Nostalgia, Regret, Desire, Devotion, Spiritual, Religious, Mystical, Philosophical, Existential, Metaphysical, Didactic, Political, Protest, Revolutionary, Feminist, Social Justice, Nature, Ecological, Scientific, Space, Cosmic, Technological, AI Poetry, Cyber Poetry, Experimental, Surreal, Absurdist, Stream of Consciousness, Fragmentary, Gothic, Dark Poetry, Horror, Macabre, Psychological, Trauma Poetry, Death Poetry, Madness Poetry, Humorous, Comic, Satire, Confessional, Personal, Autobiographical, Identity Poetry, Gender Poetry, Cultural Poetry, Diaspora Poetry, Coming-of-Age, Depression Poetry, Anxiety Poetry, Healing Poetry, Recovery Poetry, Folk Poetry, Tribal Poetry, Classical Poetry, Sanskrit Poetry, Tamil Poetry, Urdu Poetry, Persian Poetry, Ghazal, Tanka, Villanelle, Pantoum, Sestina, Spoken Word, Slam Poetry, Performance Poetry, Rap Poetry, Hip-Hop Poetry, Meta-Poetry, Ars Poetica, Conceptual Poetry, Ekphrastic Poetry, Found Poetry, Erasure Poetry, Micro-Poetry, Flash Poetry, Narrative Verse, Verse Novel, Allegorical Poetry, Mythological Poetry, Folklore Poetry, Fable Poetry, War Poetry, Soldier Poetry, Patriotism Poetry, Exile Poetry, Migration Poetry, Refugee Poetry, Urban Poetry, Street Poetry, Rural Poetry, Dystopian Poetry, Utopian Poetry, Apocalyptic Poetry, Sci-Fi Poetry, Fantasy Poetry, Speculative Poetry, Time Poetry, Memory Poetry, Dream Poetry, Lucid Poetry, Sleep Poetry, Night Poetry, Light Poetry, Silence Poetry, Sound Poetry, Digital Poetry, Hypertext Poetry, Code Poetry, Glitch Poetry, Internet Poetry, Meme Poetry";
+export const GENRE_POOL = [
+  "Noir", "Ethereal", "Minimalist", "Free Verse", "Prose", "Haiku", "Lyric", 
+  "Narrative", "Elegy", "Ode", "Sonnet", "Ballad", "Spiritual", "Mystical", 
+  "Philosophical", "Existential", "Fragmentary", "Gothic", "Dark Poetry", 
+  "Macabre", "Psychological", "Confessional", "Personal", "Meta-Poetry", 
+  "Ars Poetica", "Surreal", "Absurdist"
+];
 
 export const geminiService = {
   async getDailyLine(): Promise<string> {
@@ -40,31 +42,33 @@ export const geminiService = {
       localStorage.setItem(CACHE_TS, now.toString());
       return newLine;
     } catch (error) {
-      console.error("Daily Line Fetch Error:", error);
-      const randomSeed = FALLBACK_SEEDS[Math.floor(Math.random() * FALLBACK_SEEDS.length)];
-      return cached || randomSeed;
+      return cached || FALLBACK_SEEDS[Math.floor(Math.random() * FALLBACK_SEEDS.length)];
     }
   },
 
-  async analyzePoem(content: string, title?: string): Promise<PoemMetadata> {
+  async analyzePoem(content: string, providedTitle?: string): Promise<PoemMetadata> {
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      
-      const prompt = `Perform a high-fidelity literary analysis on this fragment.
+      const isTitleMissing = !providedTitle || providedTitle.trim() === '' || providedTitle === 'Whispering...';
+
+      const prompt = `Act as a senior literary critic and safety sentinel for a minimalist poetry sanctuary. 
+        Analyze this poetry fragment.
         
-        TASK:
-        1. genre: Select the SINGLE most dominant genre from the GENRE POOL provided. Do not use generic terms if a more specific one fits.
-        2. score: Calculate a "Genre Match Score" as an integer between 55 and 95 indicating how strongly the text adheres to the conventions of the chosen genre.
-        3. justification: A 1-sentence mini-explanation of why this genre fits.
-        4. emotionTag: A 1-2 word mood descriptor.
-        5. emotionalWeight: Intensity of mood (0-100).
-        6. suggestedTitle: If the input title is blank/generic, generate a 2-5 word haunting title.
-        7. backgroundGradient: A CSS linear-gradient(135deg, color1, color2) matching the mood. Ensure it is dark but aesthetically pleasing.
-        
-        GENRE POOL: [${GENRE_POOL}]
-        
-        INPUT TITLE: "${title || ''}"
-        INPUT CONTENT: "${content}"`;
+        STRICT SAFETY RULES:
+        - If the content contains vulgarity, slurs, explicit sexual references, or hate speech (including words like "fuck", "nigga", etc.), set isSafe: false and errorReason: "Forbidden Resonance detected."
+        - The sanctuary is for introspective art. Violence and crude language are rejected.
+
+        CONSTRAINTS:
+        1. PREDICTED_GENRE: Choose exactly one from: [${GENRE_POOL.join(', ')}].
+        2. GENRE_SCORE: 0-100 match confidence.
+        3. SUGGESTED_TITLE: If Title is "None", generate a poetic 2-8 word title.
+        4. EMOTION: One word atmospheric tag.
+        5. INTENSITY: 0-100 weight.
+        6. GRADIENT: CSS 'linear-gradient(180deg, #hex1 0%, #hex2 100%)' using cinematic dark colors.
+        7. SAFETY: Boolean flags for isSafe and containsRestricted.
+
+        TITLE: "${isTitleMissing ? 'None' : providedTitle}"
+        CONTENT: "${content}"`;
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
@@ -74,50 +78,47 @@ export const geminiService = {
           responseSchema: {
             type: Type.OBJECT,
             properties: {
+              genre: { type: Type.STRING },
+              score: { type: Type.INTEGER },
+              justification: { type: Type.STRING },
               emotionTag: { type: Type.STRING },
-              emotionalWeight: { type: Type.NUMBER },
+              emotionalWeight: { type: Type.INTEGER },
               suggestedTitle: { type: Type.STRING },
               backgroundGradient: { type: Type.STRING },
               isSafe: { type: Type.BOOLEAN },
               containsRestricted: { type: Type.BOOLEAN },
-              genre: { type: Type.STRING },
-              score: { type: Type.NUMBER },
-              justification: { type: Type.STRING }
+              errorReason: { type: Type.STRING }
             },
-            required: ["emotionTag", "emotionalWeight", "suggestedTitle", "backgroundGradient", "isSafe", "containsRestricted", "genre", "score", "justification"]
+            required: ["genre", "score", "justification", "emotionTag", "emotionalWeight", "suggestedTitle", "backgroundGradient", "isSafe", "containsRestricted"]
           }
         }
       });
-      
-      const result = JSON.parse(response.text || '{}');
-      
-      // Strict 55-95 range
-      let finalScore = typeof result.score === 'number' ? Math.round(result.score) : 55;
-      finalScore = Math.min(95, Math.max(55, finalScore));
 
+      const result = JSON.parse(response.text || "{}");
       return {
-        emotionTag: result.emotionTag || 'Echo',
+        genre: GENRE_POOL.includes(result.genre) ? result.genre : "Minimalist",
+        score: Math.max(0, Math.min(100, result.score || 70)),
+        justification: result.justification || "Atmospheric resonance detected.",
+        emotionTag: result.emotionTag || "Echo",
         emotionalWeight: result.emotionalWeight || 50,
-        suggestedTitle: result.suggestedTitle || 'A Whisper in the Dark',
-        backgroundGradient: result.backgroundGradient || 'linear-gradient(135deg, #1a1a1a 0%, #2d3436 100%)',
+        suggestedTitle: isTitleMissing ? (result.suggestedTitle || "A Fragmented Echo") : providedTitle!,
+        backgroundGradient: result.backgroundGradient || "linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%)",
         isSafe: result.isSafe ?? true,
         containsRestricted: result.containsRestricted ?? false,
-        genre: result.genre || 'Minimalist',
-        score: finalScore,
-        justification: result.justification || 'Analyzed through atmospheric resonance.'
+        errorReason: result.errorReason
       };
     } catch (error) {
-      console.error("Spectral Analysis Error:", error);
+      console.error("AI Analysis Error:", error);
       return {
-        emotionTag: 'Echo',
-        emotionalWeight: 50,
-        suggestedTitle: 'The Unnamed Fragment',
-        backgroundGradient: 'linear-gradient(135deg, #000 0%, #111 100%)',
+        genre: "Minimalist",
+        score: 50,
+        justification: "Processed with default parameters.",
+        emotionTag: "Residual",
+        emotionalWeight: 40,
+        suggestedTitle: providedTitle || "Silent Fragment",
+        backgroundGradient: "linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%)",
         isSafe: true,
-        containsRestricted: false,
-        genre: 'Minimalist',
-        score: 55,
-        justification: 'Default classification due to processing interference.'
+        containsRestricted: false
       };
     }
   }

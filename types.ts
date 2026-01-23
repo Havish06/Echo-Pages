@@ -1,4 +1,3 @@
-
 export interface UserProfile {
   id: string;
   username: string;
@@ -21,7 +20,7 @@ export interface Poem {
   score: number; // Genre match accuracy
   tone: 'melancholic' | 'hopeful' | 'livid' | 'nostalgic';
   genre: string;
-  justification?: string; // New: Mini explanation for the genre match
+  justification?: string;
   backgroundColor: string;
   visibility: 'read' | 'echoes';
 }
@@ -46,4 +45,5 @@ export interface PoemMetadata {
   justification: string;
   isSafe: boolean;
   containsRestricted: boolean;
+  errorReason?: string;
 }

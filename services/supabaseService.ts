@@ -14,46 +14,20 @@ export const authService = {
       email, 
       password,
       options: {
-        data: { display_name: displayName || email.split('@')[0] }
+        data: { 
+          display_name: displayName || email.split('@')[0],
+          username: email.split('@')[0],
+          avatar_url: `https://api.dicebear.com/7.x/shapes/svg?seed=${email}`
+        }
       }
     });
-
-    if (error) {
-      const msg = error.message.toLowerCase();
-      if (msg.includes('already registered') || msg.includes('already exists')) {
-        throw new Error("Account already exists. Please log in.");
-      }
-      throw new Error(error.message || "Identity initialization failed.");
-    }
-    
+    if (error) throw new Error(error.message);
     return data;
   },
 
   async login(email: string, password: string) {
-    const isAdminAttempt = email.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase();
-    
-    if (isAdminAttempt && password !== ADMIN_CREDENTIALS.password) {
-      throw new Error("Frequency mismatch for privileged access.");
-    }
-
-    let { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    
-    if (error && isAdminAttempt) {
-      try {
-        await this.signup(email, password, 'Admin');
-        const retry = await supabase.auth.signInWithPassword({ email, password });
-        if (retry.error) throw retry.error;
-        return retry.data;
-      } catch (signupError) {}
-    }
-
-    if (error) {
-      const msg = error.message.toLowerCase();
-      if (msg.includes('invalid login credentials')) {
-        throw new Error("Frequency mismatch. Please check your credentials.");
-      }
-      throw new Error(error.message || "Verification failed.");
-    }
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message);
     return data;
   },
 
@@ -70,181 +44,96 @@ export const authService = {
     window.location.hash = '#/';
   },
 
-  async updateDisplayName(newName: string) {
+  async updateProfile(metadata: { display_name?: string, username?: string, avatar_url?: string }) {
     const { data, error } = await supabase.auth.updateUser({
-      data: { display_name: newName }
+      data: metadata
     });
     if (error) throw error;
     return data;
   }
 };
 
-const mapFromDb = (data: any, forceVisibility?: 'read' | 'echoes'): Poem => {
-  if (!data || typeof data !== 'object') {
-    throw new Error("Spectral data corruption: Object undefined.");
-  }
-  
-  if (data.id === undefined || data.id === null) {
-    throw new Error("Spectral data corruption: Identity missing.");
-  }
-
-  return {
-    id: String(data.id),
-    title: data.title || '...',
-    content: data.content || '',
-    author: data.author || 'Anonymous',
-    userId: data.user_id || '',
-    timestamp: data.created_at ? new Date(data.created_at).getTime() : Date.now(),
-    emotionTag: data.emotion_tag || 'Echo',
-    emotionalWeight: Number(data.emotional_weight) || 50,
-    score: data.score !== undefined && data.score !== null ? Number(data.score) : 0,
-    tone: 'melancholic', 
-    genre: data.genre || 'Echo',
-    justification: data.justification || '',
-    backgroundColor: data.background_color || 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)',
-    visibility: forceVisibility || 'echoes'
-  };
-};
+const mapFromDb = (data: any, forceVisibility?: 'read' | 'echoes'): Poem => ({
+  id: String(data.id),
+  title: data.title || '...',
+  content: data.content || '',
+  author: data.author || 'Anonymous',
+  userId: data.user_id || '',
+  timestamp: data.created_at ? new Date(data.created_at).getTime() : Date.now(),
+  emotionTag: data.emotion_tag || 'Echo',
+  emotionalWeight: Number(data.emotional_weight) || 50,
+  score: Number(data.score) || 0,
+  tone: 'melancholic', 
+  genre: data.genre || 'Echo',
+  justification: data.justification || '',
+  backgroundColor: data.background_color || '',
+  visibility: forceVisibility || 'echoes'
+});
 
 export const supabaseService = {
   async getEchoes(): Promise<Poem[]> {
-    try {
-      const { data, error } = await supabase.from('echoes').select('*').order('created_at', { ascending: false });
-      if (error) return [];
-      return (data || []).filter(d => d && d.id !== undefined).map(d => mapFromDb(d, 'echoes'));
-    } catch (e) { return []; }
+    const { data, error } = await supabase.from('echoes').select('*').order('created_at', { ascending: false });
+    return error ? [] : (data || []).map(d => mapFromDb(d, 'echoes'));
   },
 
   async getAdminPoems(): Promise<Poem[]> {
-    try {
-      const { data, error } = await supabase.from('admin_poems').select('*').order('created_at', { ascending: false });
-      if (error) return [];
-      return (data || []).filter(d => d && d.id !== undefined).map(d => mapFromDb(d, 'read'));
-    } catch (e) { return []; }
+    const { data, error } = await supabase.from('admin_poems').select('*').order('created_at', { ascending: false });
+    return error ? [] : (data || []).map(d => mapFromDb(d, 'read'));
   },
 
   async createEcho(poem: Partial<Poem>): Promise<Poem | null> {
-    const payload: any = {
-      title: poem.title || 'Untitled',
+    const { data, error } = await supabase.from('echoes').insert([{
+      title: poem.title,
       content: poem.content,
       author: poem.author,
       user_id: poem.userId,
-      emotion_tag: poem.emotionTag || 'Echo',
-      emotional_weight: Math.round(poem.emotionalWeight || 50),
-      score: Math.round(poem.score ?? 0),
-      genre: poem.genre || 'Echo',
-      background_color: poem.backgroundColor || 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)'
-    };
-
-    if (poem.justification) {
-      payload.justification = poem.justification;
-    }
-    
-    const { data, error } = await supabase.from('echoes').insert([payload]).select();
-    if (error) {
-      console.error("Supabase Echo Creation Error:", error);
-      
-      // Defensively retry without justification if column is missing
-      if (error.code === 'PGRST204' || error.code === '42703' || error.message?.includes('justification')) {
-        const fallback = { ...payload };
-        delete fallback.justification;
-        const retry = await supabase.from('echoes').insert([fallback]).select();
-        if (!retry.error && retry.data?.[0]) return mapFromDb(retry.data[0], 'echoes');
-      }
-      return null;
-    }
-    return (data && data.length > 0 && data[0]) ? mapFromDb(data[0], 'echoes') : null;
+      emotion_tag: poem.emotionTag,
+      emotional_weight: poem.emotionalWeight,
+      score: poem.score,
+      genre: poem.genre,
+      justification: poem.justification,
+      background_color: poem.backgroundColor
+    }]).select();
+    return (data && data[0]) ? mapFromDb(data[0], 'echoes') : null;
   },
 
   async createAdminPoem(poem: Partial<Poem>): Promise<Poem | null> {
-    const payload: any = {
-      title: poem.title || 'Untitled',
+    const { data, error } = await supabase.from('admin_poems').insert([{
+      title: poem.title,
       content: poem.content,
       author: 'Admin',
       user_id: poem.userId || 'admin',
-      emotion_tag: poem.emotionTag || 'Curated',
-      emotional_weight: Math.round(poem.emotionalWeight || 50),
-      score: Math.round(poem.score ?? 100),
-      genre: poem.genre || 'Curated',
-      background_color: poem.backgroundColor || 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)'
-    };
-
-    if (poem.justification) {
-      payload.justification = poem.justification;
-    }
-    
-    const { data, error } = await supabase.from('admin_poems').insert([payload]).select();
-    if (error) {
-      console.error("Supabase Admin Poem Creation Error:", error);
-      if (error.code === 'PGRST204' || error.code === '42703' || error.message?.includes('justification')) {
-        const fallback = { ...payload };
-        delete fallback.justification;
-        const retry = await supabase.from('admin_poems').insert([fallback]).select();
-        if (!retry.error && retry.data?.[0]) return mapFromDb(retry.data[0], 'read');
-      }
-      return null;
-    }
-    return (data && data.length > 0 && data[0]) ? mapFromDb(data[0], 'read') : null;
+      emotion_tag: poem.emotionTag,
+      emotional_weight: poem.emotionalWeight,
+      score: poem.score,
+      genre: poem.genre,
+      justification: poem.justification,
+      background_color: poem.backgroundColor
+    }]).select();
+    return (data && data[0]) ? mapFromDb(data[0], 'read') : null;
   },
 
-  async updatePoem(id: string, visibility: 'read' | 'echoes', updates: Partial<Poem>): Promise<Poem | null> {
-    if (!id) return null;
+  async updatePoem(id: string, visibility: 'read' | 'echoes', updates: any): Promise<Poem | null> {
     const table = visibility === 'read' ? 'admin_poems' : 'echoes';
-    const payload: any = {};
-    
-    if (updates.title !== undefined) payload.title = updates.title;
-    if (updates.emotionTag !== undefined) payload.emotion_tag = updates.emotionTag;
-    if (updates.emotionalWeight !== undefined) payload.emotional_weight = Math.round(updates.emotionalWeight);
-    if (updates.score !== undefined) payload.score = Math.round(updates.score);
-    if (updates.genre !== undefined) payload.genre = updates.genre;
-    if (updates.justification !== undefined) payload.justification = updates.justification;
-    if (updates.backgroundColor !== undefined) payload.background_color = updates.backgroundColor;
-
-    const numericId = Number(id);
-    const filterId = isNaN(numericId) ? id : numericId;
-
-    const { data, error } = await supabase.from(table).update(payload).eq('id', filterId).select();
-    if (error) {
-      console.error(`Supabase Update Error (${table}):`, error);
-      // Explicitly check for PGRST204 (Schema cache error) or 42703 (Undefined column)
-      if (error.code === 'PGRST204' || error.code === '42703' || error.message?.includes('justification')) {
-        const fallbackPayload = { ...payload };
-        delete fallbackPayload.justification;
-        
-        const retry = await supabase.from(table).update(fallbackPayload).eq('id', filterId).select();
-        if (!retry.error && retry.data?.[0]) return mapFromDb(retry.data[0], visibility);
-        if (retry.error) console.error("Retry also failed:", retry.error);
-      }
-      return null;
-    }
-    return (data && data.length > 0 && data[0]) ? mapFromDb(data[0], visibility) : null;
+    const { data, error } = await supabase.from(table).update(updates).eq('id', id).select();
+    return (data && data[0]) ? mapFromDb(data[0], visibility) : null;
   },
 
   async getLeaderboard(): Promise<LeaderboardEntry[]> {
-    try {
-      const { data, error } = await supabase.from('echoes').select('user_id, author, score');
-      if (error) return [];
-      
-      const userMap: Record<string, { totalScore: number, count: number, name: string }> = {};
-      data?.forEach(d => {
-        if (!d || !d.user_id) return;
-        if (!userMap[d.user_id]) {
-          userMap[d.user_id] = { totalScore: 0, count: 0, name: d.author || 'Anonymous' };
-        }
-        userMap[d.user_id].totalScore += (d.score ?? 0);
-        userMap[d.user_id].count += 1;
-      });
-
-      return Object.entries(userMap)
-        .map(([id, val]) => ({
-          userId: id,
-          username: val.name,
-          displayName: val.name,
-          score: Math.round(val.totalScore / val.count),
-          poemCount: val.count
-        }))
-        .sort((a, b) => b.poemCount - a.poemCount || b.score - a.score)
-        .slice(0, 10);
-    } catch (e) { return []; }
+    const { data, error } = await supabase.from('echoes').select('user_id, author, score');
+    if (error) return [];
+    const userMap: Record<string, any> = {};
+    data?.forEach(d => {
+      if (!userMap[d.user_id]) userMap[d.user_id] = { totalScore: 0, count: 0, name: d.author };
+      userMap[d.user_id].totalScore += (d.score ?? 0);
+      userMap[d.user_id].count += 1;
+    });
+    return Object.entries(userMap).map(([id, val]: any) => ({
+      userId: id,
+      username: val.name,
+      displayName: val.name,
+      score: Math.round(val.totalScore / val.count),
+      poemCount: val.count
+    })).sort((a, b) => b.poemCount - a.poemCount).slice(0, 10);
   }
 };
