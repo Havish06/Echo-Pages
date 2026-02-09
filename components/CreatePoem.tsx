@@ -4,6 +4,7 @@ import { CONFIG } from '../config.ts';
 import { supabase } from '../services/supabaseService.ts';
 import { ADMIN_EMAILS } from '../constants.ts';
 import { geminiService } from '../services/geminiService.ts';
+import { validationService } from '../services/validationService.ts';
 
 interface CreatePoemProps {
   onPublish: (poem: Partial<Poem>) => Promise<void>;
@@ -31,6 +32,14 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
 
   const handleGenerateTitle = async () => {
     if (!content.trim() || regenCount >= CONFIG.MAX_TITLE_REGEN || isGeneratingTitle) return;
+    
+    // Local pre-check
+    const localVal = validationService.validateContent(content);
+    if (!localVal.valid) {
+      setSafetyError(localVal.reason || "Invalid fragment.");
+      return;
+    }
+
     setIsGeneratingTitle(true);
     setSafetyError(null);
     try {
@@ -48,6 +57,20 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
   const handlePublish = async () => {
     if (!content.trim() || isPublishing) return;
     if (!user) return;
+
+    // 1. Rate Limit Check
+    const rateCheck = validationService.checkRateLimit(user.id);
+    if (!rateCheck.allowed && !isAdmin) {
+      setSafetyError(rateCheck.reason || "Frequency limit reached.");
+      return;
+    }
+
+    // 2. Local Validation Check
+    const localVal = validationService.validateContent(content);
+    if (!localVal.valid) {
+      setSafetyError(localVal.reason || "Structural dissonance detected.");
+      return;
+    }
     
     setIsPublishing(true);
     setSafetyError(null);
@@ -61,11 +84,16 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
         timestamp: Date.now()
       };
       await onPublish(poemDraft);
+      validationService.recordPost(user.id);
     } catch (err: any) {
       setSafetyError(err.message || "Transmission interrupted by forbidden frequencies.");
       setIsPublishing(false);
     }
   };
+
+  const charCount = content.trim().length;
+  const isTooLong = charCount > 2000;
+  const isTooShort = charCount > 0 && charCount < 10;
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-20 animate-fade-in relative">
@@ -81,7 +109,7 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
               <h3 className="instrument-serif italic text-4xl text-red-500/90 tracking-tight">Forbidden Resonance</h3>
               <p className="serif-font text-lg italic opacity-60 leading-relaxed text-white">
                 "{safetyError}"<br/>
-                The Sanctuary requires purity of thought.
+                The Sanctuary requires purity of thought and rhythm.
               </p>
             </div>
             <button 
@@ -109,7 +137,7 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <p className="text-[10px] uppercase tracking-[0.4em] opacity-30 text-white font-bold">Title (Label)</p>
-              {content.trim() && regenCount < CONFIG.MAX_TITLE_REGEN && (
+              {content.trim() && !isTooLong && !isTooShort && regenCount < CONFIG.MAX_TITLE_REGEN && (
                 <button 
                   onClick={handleGenerateTitle}
                   disabled={isGeneratingTitle}
@@ -126,24 +154,31 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
               placeholder="Leave blank for auto-generation..."
               className="w-full bg-transparent border-b border-echo-border py-4 focus:outline-none instrument-serif text-4xl text-white placeholder:opacity-10 transition-all focus:border-white/40"
               disabled={isPublishing}
+              maxLength={100}
             />
           </div>
 
           <div className="space-y-4">
-            <p className="text-[10px] uppercase tracking-[0.4em] opacity-30 text-white font-bold">Fragment</p>
+            <div className="flex justify-between items-center">
+              <p className="text-[10px] uppercase tracking-[0.4em] opacity-30 text-white font-bold">Fragment</p>
+              <span className={`text-[9px] font-mono tracking-widest ${isTooLong ? 'text-red-500' : 'text-white/40'}`}>
+                {charCount} / 2000
+              </span>
+            </div>
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Whisper your thoughts..."
-              className="w-full h-80 bg-transparent border border-echo-border p-10 focus:border-white/40 focus:outline-none transition-all serif-font text-2xl italic leading-relaxed shadow-inner text-white/90 rounded-sm"
+              className={`w-full h-80 bg-transparent border ${isTooLong ? 'border-red-500/50' : 'border-echo-border'} p-10 focus:border-white/40 focus:outline-none transition-all serif-font text-2xl italic leading-relaxed shadow-inner text-white/90 rounded-sm`}
               disabled={isPublishing}
             />
+            {isTooShort && <p className="text-[9px] uppercase tracking-widest text-white/20 italic">The silence is too heavy; add more words.</p>}
           </div>
 
           <div className="space-y-8">
             <button
               onClick={handlePublish}
-              disabled={isPublishing || !content.trim()}
+              disabled={isPublishing || !content.trim() || isTooLong || isTooShort}
               className="w-full py-8 bg-white text-black text-[11px] uppercase tracking-[0.5em] font-black hover:bg-neutral-200 transition-all disabled:opacity-20 flex items-center justify-center space-x-4 shadow-2xl"
             >
               {isPublishing ? (

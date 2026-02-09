@@ -50,10 +50,22 @@ export const geminiService = {
       const ai = new GoogleGenAI({ apiKey: key });
       const isTitleMissing = !providedTitle || providedTitle.trim() === '' || providedTitle.toLowerCase() === 'untitled';
 
+      // Enhanced prompt with strict safety instructions
+      const systemInstruction = `You are the Sanctuary Guardian for "Echo Pages", a minimalist poetry platform. 
+      Your task is to analyze poetry for genre, title, and most importantly, SAFETY.
+      REJECT (isSafe: false) if the text contains:
+      - Explicit violence, hate speech, or dehumanizing language.
+      - Explicit sexual content or graphic anatomical descriptions.
+      - Self-harm glorification.
+      - Profanity used in a toxic, non-poetic manner.
+      
+      Atmosphere: Introspective, Haunting, Dark-Academic.`;
+
       const response = await ai.models.generateContent({
         model: CONFIG.DEFAULT_MODEL,
-        contents: `Act as a literary critic. Analyze: "${content}". Provided Title: "${isTitleMissing ? 'None' : providedTitle}"`,
+        contents: `Analyze this poetic fragment. Title Provided: "${isTitleMissing ? 'None' : providedTitle}". Fragment: "${content}"`,
         config: {
+          systemInstruction,
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -63,7 +75,8 @@ export const geminiService = {
               justification: { type: Type.STRING },
               suggestedTitle: { type: Type.STRING },
               backgroundGradient: { type: Type.STRING },
-              isSafe: { type: Type.BOOLEAN }
+              isSafe: { type: Type.BOOLEAN },
+              rejectionReason: { type: Type.STRING, description: "If isSafe is false, explain why concisely." }
             },
             required: ["genre", "score", "justification", "suggestedTitle", "backgroundGradient", "isSafe"]
           }
@@ -78,18 +91,23 @@ export const geminiService = {
         suggestedTitle: result.suggestedTitle || "A Fragmented Echo",
         backgroundGradient: result.backgroundGradient || "linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%)",
         isSafe: result.isSafe ?? true,
-        containsRestricted: !(result.isSafe ?? true)
+        containsRestricted: !(result.isSafe ?? true),
+        errorReason: result.rejectionReason
       };
     } catch (error: any) {
-      console.warn("AI Fallback active:", error);
+      console.warn("AI Safety Fallback active:", error);
+      // If AI service fails, we assume safety for standard cases but fail for known error codes
+      const isSafetyError = error?.message?.includes('SAFETY') || error?.status === 400;
+      
       return {
         genre: "Minimalist",
         score: 75,
         justification: "Resonance persists despite external silence.",
         suggestedTitle: (providedTitle && providedTitle !== 'Untitled') ? providedTitle : "Silent Fragment",
         backgroundGradient: "linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%)",
-        isSafe: true,
-        containsRestricted: false
+        isSafe: !isSafetyError,
+        containsRestricted: isSafetyError,
+        errorReason: isSafetyError ? "The AI Sanctuary blocked this frequency for safety reasons." : undefined
       };
     }
   }
