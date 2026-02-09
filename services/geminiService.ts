@@ -20,21 +20,41 @@ export const GENRE_POOL = [
   "Ars Poetica", "Surreal", "Absurdist"
 ];
 
+/**
+ * Extracts JSON even if wrapped in conversational text or different markdown block formats.
+ */
 const cleanJsonResponse = (text: string) => {
+  if (!text) return {};
   try {
+    // Attempt standard cleanup first
     const cleaned = text.trim().replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
     return JSON.parse(cleaned);
   } catch (e) {
-    const match = text.match(/\{[\s\S]*\}/);
-    if (match) {
+    // Aggressive extraction: find the first '{' and last '}'
+    const startIndex = text.indexOf('{');
+    const endIndex = text.lastIndexOf('}');
+    if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
       try {
-        return JSON.parse(match[0]);
+        const jsonOnly = text.substring(startIndex, endIndex + 1);
+        return JSON.parse(jsonOnly);
       } catch (innerE) {
+        console.error("AI Response extraction failed:", innerE);
         throw innerE;
       }
     }
     throw e;
   }
+};
+
+/**
+ * Ensures we have a valid API Key string from process.env
+ */
+const getSafeApiKey = (): string | undefined => {
+  const key = process.env.API_KEY;
+  if (!key || key === 'undefined' || key === 'null' || key.length < 5) {
+    return undefined;
+  }
+  return key;
 };
 
 export const geminiService = {
@@ -47,9 +67,14 @@ export const geminiService = {
       return cached;
     }
 
+    const apiKey = getSafeApiKey();
+    if (!apiKey) {
+      console.warn("Daily Echo: No API_KEY found. Using fallback archive.");
+      return FALLBACK_SEEDS[0];
+    }
+
     try {
-      if (!process.env.API_KEY) return FALLBACK_SEEDS[0];
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: "Generate one hauntingly beautiful, short, introspective line of poetry. No quotation marks. No explanation.",
@@ -59,14 +84,20 @@ export const geminiService = {
       localStorage.setItem(CACHE_TS, now.toString());
       return newLine;
     } catch (error) {
+      console.error("Daily Line Generation Error:", error);
       return cached || FALLBACK_SEEDS[0];
     }
   },
 
   async analyzePoem(content: string, providedTitle?: string): Promise<PoemMetadata> {
+    const apiKey = getSafeApiKey();
+    if (!apiKey) {
+      console.error("Critical: process.env.API_KEY is missing or invalid. Deployment environment check required.");
+      throw new Error("Resonance Interrupted: The void lacks an access frequency (API Key).");
+    }
+
     try {
-      if (!process.env.API_KEY) throw new Error("API_KEY missing");
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey });
       const isTitleMissing = !providedTitle || providedTitle.trim() === '' || providedTitle.toLowerCase() === 'untitled';
 
       const prompt = `Act as a literary critic for "Echo Pages". Analyze this fragment.
@@ -114,10 +145,11 @@ export const geminiService = {
         errorReason: result.errorReason
       };
     } catch (error) {
+      console.error("AI Analysis Failed:", error);
       return {
         genre: "Minimalist",
         score: 50,
-        justification: "Processed with fallback logic.",
+        justification: "Processed with emergency fallback logic.",
         suggestedTitle: providedTitle || "Silent Fragment",
         backgroundGradient: "linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%)",
         isSafe: true,

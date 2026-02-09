@@ -15,9 +15,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
     <script>
-        // Safer polyfill to ensure process.env exists without wiping platform-injected variables
-        window.process = window.process || {};
-        window.process.env = window.process.env || {};
+        // Ensure process.env exists without wiping variables injected by build or edge layers
+        (function() {
+            window.process = window.process || {};
+            window.process.env = window.process.env || {};
+        })();
         
         tailwind.config = {
             darkMode: 'class',
