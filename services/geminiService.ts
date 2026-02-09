@@ -50,10 +50,11 @@ const cleanJsonResponse = (text: string) => {
  * Ensures we have a valid API Key string from the environment.
  */
 const getSafeApiKey = (): string | undefined => {
+  // Access key directly from process.env.API_KEY as per guidelines.
   const key = process.env.API_KEY;
 
-  if (!key || key === 'undefined' || key === 'null') {
-    console.debug("Echo Pages: API_KEY is undefined in current context.");
+  if (!key || key === 'undefined' || key === 'null' || key.length < 5) {
+    console.warn("Echo Pages: API_KEY is undefined. If running locally, check .env.local. If deployed, check platform environment variables.");
     return undefined;
   }
   
@@ -94,7 +95,7 @@ export const geminiService = {
   async analyzePoem(content: string, providedTitle?: string): Promise<PoemMetadata> {
     const apiKey = getSafeApiKey();
     if (!apiKey) {
-      throw new Error("Resonance Interrupted: The void lacks an access frequency (API Key). Please verify environment configuration in Vercel.");
+      throw new Error("Resonance Interrupted: The void lacks an access frequency (API Key). Verify your .env.local or Vercel environment configuration.");
     }
 
     try {

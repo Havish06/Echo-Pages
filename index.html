@@ -15,12 +15,13 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
     <script>
-        // Critical: Defining process.env before any modules or dependencies load.
+        // Robust process.env shim for browser environments
         (function() {
-            var g = typeof window !== 'undefined' ? window : global;
-            g.process = g.process || {};
-            g.process.env = g.process.env || {};
-            // The platform will inject the actual API_KEY into process.env.API_KEY
+            window.process = window.process || {};
+            window.process.env = window.process.env || {};
+            
+            // This global setup ensures modules can safely reference process.env.API_KEY.
+            // For Vercel deployments, ensure the API_KEY is set in your project environment variables.
         })();
         
         tailwind.config = {
