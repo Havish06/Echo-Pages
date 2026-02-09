@@ -4,8 +4,8 @@
  */
 
 export const CONFIG = {
-  // The API_KEY is accessed exclusively via process.env.API_KEY as per guidelines.
-  // It is expected to be injected by the environment (e.g., Vercel, Vite, or a global shim).
+  // The API_KEY is accessed exclusively via process.env.API_KEY.
+  // In the Vite build process, this is replaced by the actual key from Vercel.
   GEMINI_API_KEY: process.env.API_KEY,
   
   // Primary model for generation and analysis
