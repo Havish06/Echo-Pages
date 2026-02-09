@@ -15,14 +15,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
     <script>
-        // Robust process.env shim for browser environments
-        (function() {
-            window.process = window.process || {};
-            window.process.env = window.process.env || {};
-            
-            // This global setup ensures modules can safely reference process.env.API_KEY.
-            // For Vercel deployments, ensure the API_KEY is set in your project environment variables.
-        })();
+        // Minimal shim for process.env in browser contexts
+        window.process = window.process || { env: {} };
         
         tailwind.config = {
             darkMode: 'class',
