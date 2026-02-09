@@ -2,8 +2,6 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { PoemMetadata } from "../types.ts";
 import { CONFIG } from "../config.ts";
 
-export const runtime = "nodejs";
-
 const CACHE_KEY = 'echo_daily_line_v1';
 const CACHE_TS = 'echo_daily_ts_v1';
 
@@ -14,35 +12,6 @@ const FALLBACK_SEEDS = [
   "Memory is a mirror that only shows the things we've lost.",
   "The bottom of the sky is closer than the top of the earth."
 ];
-
-export const GENRE_POOL = [
-  "Noir", "Ethereal", "Minimalist", "Free Verse", "Prose", "Haiku", "Lyric", 
-  "Narrative", "Elegy", "Ode", "Sonnet", "Ballad", "Spiritual", "Mystical", 
-  "Philosophical", "Existential", "Fragmentary", "Gothic", "Dark Poetry", 
-  "Macabre", "Psychological", "Confessional", "Personal", "Meta-Poetry", 
-  "Ars Poetica", "Surreal", "Absurdist"
-];
-
-const cleanJsonResponse = (text: string) => {
-  if (!text) return {};
-  try {
-    const cleaned = text.trim().replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
-    return JSON.parse(cleaned);
-  } catch (e) {
-    const startIndex = text.indexOf('{');
-    const endIndex = text.lastIndexOf('}');
-    if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
-      try {
-        const jsonOnly = text.substring(startIndex, endIndex + 1);
-        return JSON.parse(jsonOnly);
-      } catch (innerE) {
-        console.error("AI Response extraction failed:", innerE);
-        throw innerE;
-      }
-    }
-    throw e;
-  }
-};
 
 export const geminiService = {
   async getDailyLine(): Promise<string> {
@@ -55,14 +24,8 @@ export const geminiService = {
     }
 
     try {
-      /**
-       * Strictly access via process.env.API_KEY. 
-       * Vite replaces this with a string literal during build.
-       */
       const key = process.env.API_KEY;
-      if (!key || key === 'undefined' || key === '""') {
-        throw new Error("API Key missing at runtime.");
-      }
+      if (!key || key === 'undefined') throw new Error("Key missing");
 
       const ai = new GoogleGenAI({ apiKey: key });
       const response = await ai.models.generateContent({
@@ -74,7 +37,7 @@ export const geminiService = {
       localStorage.setItem(CACHE_TS, now.toString());
       return newLine;
     } catch (error) {
-      console.warn("Daily Line Generation Failed (Silent Fallback):", error);
+      console.warn("AI Frequency Interrupted:", error);
       return cached || FALLBACK_SEEDS[Math.floor(Math.random() * FALLBACK_SEEDS.length)];
     }
   },
@@ -82,27 +45,14 @@ export const geminiService = {
   async analyzePoem(content: string, providedTitle?: string): Promise<PoemMetadata> {
     try {
       const key = process.env.API_KEY;
-      if (!key || key === 'undefined' || key === '""') {
-        throw new Error("Resonance Frequency Missing: process.env.API_KEY is not provisioned.");
-      }
+      if (!key || key === 'undefined') throw new Error("Frequency Missing");
 
       const ai = new GoogleGenAI({ apiKey: key });
       const isTitleMissing = !providedTitle || providedTitle.trim() === '' || providedTitle.toLowerCase() === 'untitled';
 
-      const prompt = `Act as a literary critic for "Echo Pages". Analyze this fragment.
-        1. PREDICTED_GENRE: Exactly one from [${GENRE_POOL.join(', ')}].
-        2. GENRE_SCORE: Confidence % (0-100).
-        3. SUGGESTED_TITLE: Poetic, evocative 2-8 word title.
-        4. JUSTIFICATION: Brief literary reason for genre choice.
-        5. GRADIENT: CSS linear-gradient dark/atmospheric hex colors.
-        6. SAFETY: Boolean flags for isSafe.
-
-        TITLE PROVIDED: "${isTitleMissing ? 'None' : providedTitle}"
-        CONTENT: "${content}"`;
-
       const response = await ai.models.generateContent({
         model: CONFIG.DEFAULT_MODEL,
-        contents: prompt,
+        contents: `Act as a literary critic. Analyze: "${content}". Provided Title: "${isTitleMissing ? 'None' : providedTitle}"`,
         config: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -113,46 +63,29 @@ export const geminiService = {
               justification: { type: Type.STRING },
               suggestedTitle: { type: Type.STRING },
               backgroundGradient: { type: Type.STRING },
-              isSafe: { type: Type.BOOLEAN },
-              containsRestricted: { type: Type.BOOLEAN },
-              errorReason: { type: Type.STRING }
+              isSafe: { type: Type.BOOLEAN }
             },
-            required: ["genre", "score", "justification", "suggestedTitle", "backgroundGradient", "isSafe", "containsRestricted"]
+            required: ["genre", "score", "justification", "suggestedTitle", "backgroundGradient", "isSafe"]
           }
         }
       });
 
-      const result = cleanJsonResponse(response.text || "{}");
+      const result = JSON.parse(response.text || "{}");
       return {
-        genre: GENRE_POOL.includes(result.genre) ? result.genre : "Minimalist",
+        genre: result.genre || "Minimalist",
         score: Math.max(0, Math.min(100, result.score || 70)),
         justification: result.justification || "Atmospheric resonance detected.",
         suggestedTitle: result.suggestedTitle || "A Fragmented Echo",
         backgroundGradient: result.backgroundGradient || "linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%)",
         isSafe: result.isSafe ?? true,
-        containsRestricted: result.containsRestricted ?? false,
-        errorReason: result.errorReason
+        containsRestricted: !(result.isSafe ?? true)
       };
     } catch (error: any) {
-      console.warn("AI Analysis Failed (Graceful Fallback):", error);
-      
-      if (error?.message?.toLowerCase().includes('safety') || error?.message?.toLowerCase().includes('candidate')) {
-        return {
-          genre: "Fragmentary",
-          score: 0,
-          justification: "The Sanctuary senses forbidden resonance in these words.",
-          suggestedTitle: providedTitle || "Redacted Fragment",
-          backgroundGradient: "linear-gradient(180deg, #450a0a 0%, #000000 100%)",
-          isSafe: false,
-          containsRestricted: true,
-          errorReason: "Forbidden resonance detected."
-        };
-      }
-
+      console.warn("AI Fallback active:", error);
       return {
         genre: "Minimalist",
         score: 75,
-        justification: "Atmospheric resonance persists despite external silence.",
+        justification: "Resonance persists despite external silence.",
         suggestedTitle: (providedTitle && providedTitle !== 'Untitled') ? providedTitle : "Silent Fragment",
         backgroundGradient: "linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%)",
         isSafe: true,

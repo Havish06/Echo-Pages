@@ -18,23 +18,6 @@ import Leaderboard from './components/Leaderboard.tsx';
 import Auth from './components/Auth.tsx';
 import AdminPortal from './components/AdminPortal.tsx';
 
-const ATMOSPHERIC_PALETTE = [
-  ['#0f172a', '#1e1b4b'], ['#1e1b4b', '#450a0a'], ['#020617', '#1e293b'],
-  ['#2d0a0a', '#000000'], ['#1e1b0b', '#451a03'], ['#082f49', '#0c4a6e'],
-  ['#171717', '#404040'], ['#312e81', '#1e1b4b'], ['#4c1d95', '#1e1b4b']
-];
-
-export const getAtmosphericGradient = (id: string) => {
-  if (!id) return 'linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%)';
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = ((hash << 5) - hash) + id.charCodeAt(i);
-    hash |= 0;
-  }
-  const palette = ATMOSPHERIC_PALETTE[Math.abs(hash) % ATMOSPHERIC_PALETTE.length];
-  return `linear-gradient(180deg, ${palette[0]} 0%, ${palette[1]} 100%)`;
-};
-
 const App: React.FC = () => {
   const [adminPoems, setAdminPoems] = useState<Poem[]>([]);
   const [userPoems, setUserPoems] = useState<Poem[]>([]);
@@ -42,13 +25,10 @@ const App: React.FC = () => {
   const [previousView, setPreviousView] = useState<View>('home');
   const [selectedPoemId, setSelectedPoemId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [dailyLine, setDailyLine] = useState<string>(() => localStorage.getItem('echo_daily_line_v1') || "Silence is the only thing we truly own.");
+
   const currentViewRef = useRef<View>('home');
-
   useEffect(() => { currentViewRef.current = currentView; }, [currentView]);
-
-  const [dailyLine, setDailyLine] = useState<string>(() => {
-    return localStorage.getItem('echo_daily_line_v1') || "Silence is the only thing we truly own.";
-  });
 
   const syncStateWithHash = async () => {
     const hash = window.location.hash || '#/';
@@ -75,29 +55,23 @@ const App: React.FC = () => {
       return;
     }
     
-    const lastView = currentViewRef.current;
-    if (lastView !== 'detail' && lastView !== targetView) setPreviousView(lastView);
-
+    if (currentViewRef.current !== 'detail' && currentViewRef.current !== targetView) setPreviousView(currentViewRef.current);
     setSelectedPoemId(targetPoemId);
     setCurrentView(targetView);
   };
 
   const refreshData = async () => {
     try {
-      const [admins, users] = await Promise.all([
-        supabaseService.getAdminPoems(),
-        supabaseService.getEchoes()
-      ]);
+      const [admins, users] = await Promise.all([supabaseService.getAdminPoems(), supabaseService.getEchoes()]);
       setAdminPoems(admins || []);
       setUserPoems(users || []);
-    } catch (err) { console.error("Data Refresh Failed:", err); }
+    } catch (err) { console.error("Data Sync Error:", err); }
   };
 
   useEffect(() => {
     window.addEventListener('hashchange', syncStateWithHash);
     syncStateWithHash();
     refreshData();
-    const channel = supabase.channel('global_echo_sync').on('postgres_changes', { event: '*', table: 'echoes', schema: 'public' }, () => refreshData()).subscribe();
     geminiService.getDailyLine().then(line => setDailyLine(line));
     return () => window.removeEventListener('hashchange', syncStateWithHash);
   }, []);
@@ -113,43 +87,31 @@ const App: React.FC = () => {
   };
 
   const handlePublish = async (newPoem: Partial<Poem>) => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const isAdminUser = newPoem.userId === 'admin' || (!!session?.user?.email && ADMIN_EMAILS.includes(session.user.email));
-      const meta = await geminiService.analyzePoem(newPoem.content || '', newPoem.title);
-      if (!meta.isSafe) throw new Error(meta.errorReason || "Forbidden Resonance");
+    const meta = await geminiService.analyzePoem(newPoem.content || '', newPoem.title);
+    if (!meta.isSafe) throw new Error("Forbidden Resonance");
 
-      const finalTitle = (newPoem.title && newPoem.title.trim() !== "" && newPoem.title.toLowerCase() !== 'untitled') 
-        ? newPoem.title 
-        : meta.suggestedTitle;
+    const isAdminUser = !!currentUser?.email && ADMIN_EMAILS.includes(currentUser.email);
+    const finalPoem: Partial<Poem> = {
+      ...newPoem,
+      title: (newPoem.title && newPoem.title.trim() !== "" && newPoem.title.toLowerCase() !== 'untitled') ? newPoem.title : meta.suggestedTitle,
+      score: meta.score,
+      genre: meta.genre,
+      justification: meta.justification,
+      backgroundColor: meta.backgroundGradient,
+      visibility: isAdminUser ? 'read' : 'echoes'
+    };
 
-      const fullPoem: Partial<Poem> = {
-        ...newPoem,
-        title: finalTitle,
-        score: meta.score,
-        genre: meta.genre,
-        justification: meta.justification,
-        backgroundColor: meta.backgroundGradient,
-        visibility: isAdminUser ? 'read' : 'echoes'
-      };
-
-      let saved = isAdminUser 
-        ? await supabaseService.createAdminPoem(fullPoem)
-        : await supabaseService.createEcho(fullPoem);
-
-      if (!saved) throw new Error("Sync failure");
-      refreshData();
-      navigateTo(isAdminUser ? 'feed' : 'user-feed');
-    } catch (err) {
-      throw err; 
-    }
+    const saved = isAdminUser ? await supabaseService.createAdminPoem(finalPoem) : await supabaseService.createEcho(finalPoem);
+    if (!saved) throw new Error("Transmission Failed");
+    refreshData();
+    navigateTo(isAdminUser ? 'feed' : 'user-feed');
   };
 
   const allPoems = [...adminPoems, ...userPoems];
   const selectedPoem = allPoems.find(p => p.id === selectedPoemId);
 
   return (
-    <div className="min-h-screen flex flex-col bg-echo-bg text-echo-text">
+    <div className="min-h-screen flex flex-col bg-echo-bg text-echo-text selection:bg-neutral-800">
       <Header currentView={currentView} onNavigate={navigateTo} />
       <main className="flex-grow">
         {currentView === 'home' && <Home dailyLine={dailyLine} onNavigate={navigateTo} />}
@@ -163,7 +125,7 @@ const App: React.FC = () => {
                 {currentView === 'feed' ? 'Curated Introspection' : 'Community Resonance'}
               </p>
             </header>
-            <Feed poems={currentView === 'feed' ? adminPoems : userPoems} onSelectPoem={(id) => navigateTo('detail', id)} currentUser={currentUser} />
+            <Feed poems={currentView === 'feed' ? adminPoems : userPoems} onSelectPoem={(id) => navigateTo('detail', id)} />
           </div>
         )}
         {currentView === 'detail' && selectedPoem && (
