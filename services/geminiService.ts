@@ -22,13 +22,6 @@ export const GENRE_POOL = [
   "Ars Poetica", "Surreal", "Absurdist"
 ];
 
-export async function GET() {
-  return Response.json({
-    hasKey: !!process.env.API_KEY,
-    length: process.env.API_KEY?.length
-  });
-}
-
 /**
  * Extracts JSON even if wrapped in conversational text or markdown blocks.
  */
