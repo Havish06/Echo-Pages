@@ -22,6 +22,13 @@ export const GENRE_POOL = [
   "Ars Poetica", "Surreal", "Absurdist"
 ];
 
+export async function GET() {
+  return Response.json({
+    hasKey: !!process.env.API_KEY,
+    length: process.env.API_KEY?.length
+  });
+}
+
 /**
  * Extracts JSON even if wrapped in conversational text or markdown blocks.
  */
@@ -57,8 +64,15 @@ export const geminiService = {
     }
 
     try {
-      // Direct use of process.env.API_KEY as per guidelines
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      // Direct access via process.env.API_KEY as per guidelines.
+      const apiKey = process.env.API_KEY;
+      
+      // If the key is missing from the browser's process.env shim, return fallback.
+      if (!apiKey || apiKey === 'undefined') {
+        return cached || FALLBACK_SEEDS[Math.floor(Math.random() * FALLBACK_SEEDS.length)];
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: "Generate one hauntingly beautiful, short, introspective line of poetry. No quotation marks. No explanation.",
@@ -75,8 +89,14 @@ export const geminiService = {
 
   async analyzePoem(content: string, providedTitle?: string): Promise<PoemMetadata> {
     try {
-      // Direct initialization - assumes process.env.API_KEY is handled by the environment
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      // Accessing strictly via process.env.API_KEY.
+      const apiKey = process.env.API_KEY;
+      
+      if (!apiKey || apiKey === 'undefined') {
+        throw new Error("Resonance Frequency Missing: process.env.API_KEY is not provisioned in this environment.");
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
       const isTitleMissing = !providedTitle || providedTitle.trim() === '' || providedTitle.toLowerCase() === 'untitled';
 
       const prompt = `Act as a literary critic for "Echo Pages". Analyze this fragment.
@@ -126,7 +146,7 @@ export const geminiService = {
     } catch (error: any) {
       console.warn("AI Analysis Failed (Graceful Fallback):", error);
       
-      // Explicit safety rejection (e.g., from the model's built-in safety filters)
+      // Explicit safety rejection
       if (error?.message?.toLowerCase().includes('safety') || error?.message?.toLowerCase().includes('candidate')) {
         return {
           genre: "Fragmentary",

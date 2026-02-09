@@ -15,8 +15,18 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
     <script>
-        // Minimal shim for process.env in browser contexts
-        window.process = window.process || { env: {} };
+        /**
+         * Robust process.env shim for browser environments.
+         * Ensures that 'process.env' is defined globally so that the Gemini SDK
+         * can access the API_KEY as required.
+         */
+        (function() {
+            window.process = window.process || {};
+            window.process.env = window.process.env || {};
+            
+            // Note: In local development or specific platform runners,
+            // process.env.API_KEY is usually injected into this object.
+        })();
         
         tailwind.config = {
             darkMode: 'class',
