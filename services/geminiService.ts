@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { PoemMetadata } from "../types.ts";
+import { CONFIG } from "../config.ts";
 
 export const runtime = "nodejs";
 
@@ -52,23 +53,15 @@ export const geminiService = {
     const ts = localStorage.getItem(CACHE_TS);
     const now = Date.now();
 
-    if (cached && ts && (now - parseInt(ts)) < 86400000) {
+    if (cached && ts && (now - parseInt(ts)) < CONFIG.DAILY_LINE_CACHE_DURATION) {
       return cached;
     }
 
     try {
-      // Direct access via process.env.API_KEY as per guidelines.
-      const apiKey = process.env.PUKU;
-      
-
-      // If the key is missing from the browser's process.env shim, return fallback.
-      if (!apiKey || apiKey === 'undefined') {
-        return cached || FALLBACK_SEEDS[Math.floor(Math.random() * FALLBACK_SEEDS.length)];
-      }
-
-      const ai = new GoogleGenAI({ apiKey });
+      // Accessing process.env.API_KEY directly for SDK initialization as per guidelines.
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: CONFIG.DEFAULT_MODEL,
         contents: "Generate one hauntingly beautiful, short, introspective line of poetry. No quotation marks. No explanation.",
       });
       const newLine = response.text?.trim() || FALLBACK_SEEDS[0];
@@ -83,15 +76,12 @@ export const geminiService = {
 
   async analyzePoem(content: string, providedTitle?: string): Promise<PoemMetadata> {
     try {
-      // Accessing strictly via process.env.API_KEY.
-      const apiKey = process.env.PUKU;
-      console.log(apiKey)
-      
-      if (!apiKey || apiKey === 'undefined') {
-        throw new Error("Resonance Frequency Missing: process.env.API_KEY is not provisioned in this environment.");
+      // Accessing process.env.API_KEY directly for SDK initialization as per guidelines.
+      if (!process.env.API_KEY || process.env.API_KEY === 'undefined') {
+        throw new Error("Resonance Frequency Missing: process.env.API_KEY is not provisioned.");
       }
 
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const isTitleMissing = !providedTitle || providedTitle.trim() === '' || providedTitle.toLowerCase() === 'untitled';
 
       const prompt = `Act as a literary critic for "Echo Pages". Analyze this fragment.
@@ -106,7 +96,7 @@ export const geminiService = {
         CONTENT: "${content}"`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: CONFIG.DEFAULT_MODEL,
         contents: prompt,
         config: {
           responseMimeType: "application/json",

@@ -1,6 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { Poem } from '../types.ts';
+import { CONFIG } from '../config.ts';
 import { supabase } from '../services/supabaseService.ts';
 import { ADMIN_EMAILS } from '../constants.ts';
 import { geminiService } from '../services/geminiService.ts';
@@ -30,7 +30,7 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
   }, []);
 
   const handleGenerateTitle = async () => {
-    if (!content.trim() || regenCount >= 3 || isGeneratingTitle) return;
+    if (!content.trim() || regenCount >= CONFIG.MAX_TITLE_REGEN || isGeneratingTitle) return;
     setIsGeneratingTitle(true);
     setSafetyError(null);
     try {
@@ -53,7 +53,6 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
     setSafetyError(null);
     
     try {
-      // Draft is sent to App.tsx's handlePublish which performs the final spectral analysis
       const poemDraft: Partial<Poem> = {
         title: title.trim(),
         content: content.trim(),
@@ -110,13 +109,13 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <p className="text-[10px] uppercase tracking-[0.4em] opacity-30 text-white font-bold">Title (Label)</p>
-              {content.trim() && regenCount < 3 && (
+              {content.trim() && regenCount < CONFIG.MAX_TITLE_REGEN && (
                 <button 
                   onClick={handleGenerateTitle}
                   disabled={isGeneratingTitle}
                   className="text-[9px] uppercase tracking-widest opacity-60 hover:opacity-100 transition-all flex items-center space-x-2 border border-white/10 px-3 py-1 bg-white/5 text-white"
                 >
-                  {isGeneratingTitle ? "Analyzing Content..." : regenCount === 0 ? "Magic Title" : `Regen (${3 - regenCount})`}
+                  {isGeneratingTitle ? "Analyzing Content..." : regenCount === 0 ? "Magic Title" : `Regen (${CONFIG.MAX_TITLE_REGEN - regenCount})`}
                 </button>
               )}
             </div>
