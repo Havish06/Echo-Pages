@@ -15,14 +15,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
     <script>
-        // Setup a global process shim early.
-        // This ensures code referencing process.env doesn't crash and can access platform-injected keys.
-        (function() {
-            window.process = window.process || { env: {} };
-            if (typeof window.process.env === 'undefined') {
-                window.process.env = {};
-            }
-        })();
+        // Ensure process.env exists globally before modules load
+        window.process = window.process || { env: {} };
+        // Define as global process to handle code accessing it without window.
+        if (typeof process === 'undefined') {
+            window.process = window.process;
+        }
         
         tailwind.config = {
             darkMode: 'class',
