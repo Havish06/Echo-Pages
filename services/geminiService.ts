@@ -58,7 +58,7 @@ export const geminiService = {
 
     try {
       // Direct access via process.env.API_KEY as per guidelines.
-      const apiKey = process.env.API_KEY;
+      const apiKey = process.env.PUKU;
       
 
       // If the key is missing from the browser's process.env shim, return fallback.
@@ -84,7 +84,7 @@ export const geminiService = {
   async analyzePoem(content: string, providedTitle?: string): Promise<PoemMetadata> {
     try {
       // Accessing strictly via process.env.API_KEY.
-      const apiKey = process.env.API_KEY;
+      const apiKey = process.env.PUKU;
       console.log(apiKey)
       
       if (!apiKey || apiKey === 'undefined') {
