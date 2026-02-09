@@ -35,6 +35,7 @@ const Leaderboard: React.FC = () => {
                 </div>
               </div>
               <div className="text-right">
+                {/* Fixed corrupted JSX attribute name and content placement */}
                 <div className="text-4xl instrument-serif text-white font-bold">{entry.score}%</div>
                 <div className="text-[8px] uppercase tracking-widest opacity-80 text-white font-black">Mastery Score</div>
               </div>

@@ -41,8 +41,8 @@ const PoemDetail: React.FC<PoemDetailProps> = ({ poem, onBack, currentUser }) =>
       className={`min-h-[90vh] relative transition-all duration-1000 ${isVisible ? 'opacity-100' : 'opacity-0'} flex flex-col overflow-hidden`}
       style={{ background: backgroundStyle }}
     >
-      {/* Ultra-Dense, 30px High-Frequency Tiled Watermark */}
-      <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.06]" style={{
+      {/* Ultra-Dense, 30px High-Frequency Tiled Watermark - Opacity reduced for readability */}
+      <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.03]" style={{
         backgroundImage: `url("data:image/svg+xml,%3Csvg width='150' height='35' viewBox='0 0 150 35' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle' fill='white' font-family='serif' font-size='30' font-weight='900' letter-spacing='-2' opacity='0.2'%3EECHO PAGES%3C/text%3E%3C/svg%3E")`,
         backgroundRepeat: 'repeat',
         transform: 'rotate(-15deg) scale(1.15)'
