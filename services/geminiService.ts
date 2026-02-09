@@ -60,6 +60,7 @@ export const geminiService = {
       // Direct access via process.env.API_KEY as per guidelines.
       const apiKey = process.env.API_KEY;
       
+      
       // If the key is missing from the browser's process.env shim, return fallback.
       if (!apiKey || apiKey === 'undefined') {
         return cached || FALLBACK_SEEDS[Math.floor(Math.random() * FALLBACK_SEEDS.length)];
