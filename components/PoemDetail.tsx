@@ -38,12 +38,14 @@ const PoemDetail: React.FC<PoemDetailProps> = ({ poem, onBack, currentUser }) =>
 
   return (
     <div 
-      className={`min-h-[90vh] relative transition-all duration-1000 ${isVisible ? 'opacity-100' : 'opacity-0'} flex flex-col`}
+      className={`min-h-[90vh] relative transition-all duration-1000 ${isVisible ? 'opacity-100' : 'opacity-0'} flex flex-col overflow-hidden`}
       style={{ background: backgroundStyle }}
     >
-      <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.02]" style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' fill='white' font-size='10' opacity='0.1'%3EECHO%3C/text%3E%3C/svg%3E")`,
-        backgroundRepeat: 'repeat'
+      {/* Ultra-Dense, 30px High-Frequency Tiled Watermark */}
+      <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.06]" style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg width='150' height='35' viewBox='0 0 150 35' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle' fill='white' font-family='serif' font-size='30' font-weight='900' letter-spacing='-2' opacity='0.2'%3EECHO PAGES%3C/text%3E%3C/svg%3E")`,
+        backgroundRepeat: 'repeat',
+        transform: 'rotate(-15deg) scale(1.15)'
       }}></div>
 
       <div className="max-w-4xl mx-auto px-6 py-12 md:py-20 bg-black/40 backdrop-blur-[20px] flex-grow flex flex-col justify-center relative z-10 text-white w-full border-x border-white/5 shadow-2xl">
@@ -105,7 +107,7 @@ const PoemDetail: React.FC<PoemDetailProps> = ({ poem, onBack, currentUser }) =>
             )}
           </header>
 
-          <div className="serif-font text-xl md:text-3xl leading-[1.8] whitespace-pre-line italic text-white/90 min-h-[16rem] tracking-wide py-8">
+          <div className="serif-font text-xl md:text-3xl leading-[1.8] whitespace-pre-line italic text-white/90 min-h-[16rem] tracking-wide py-8 select-none relative z-20">
             {poem.content}
           </div>
 

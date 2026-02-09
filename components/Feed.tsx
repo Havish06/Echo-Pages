@@ -30,16 +30,14 @@ const Feed: React.FC<FeedProps> = ({ poems, onSelectPoem, currentUser }) => {
     return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
   };
 
-  // MVP FEATURE 3: Color Mapping Logic
   const getResonanceColor = (score: number) => {
-    if (score < 40) return '#ef4444'; // Red (weak match)
-    if (score < 70) return '#f59e0b'; // Yellow/Amber (medium match)
-    return '#10b981'; // Green (strong match)
+    if (score < 40) return '#ef4444'; // Red
+    if (score < 70) return '#f59e0b'; // Yellow/Amber
+    return '#10b981'; // Green
   };
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-6 space-y-12">
-      {/* Search & Filters UI */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white/5 p-6 border border-white/10 rounded-sm backdrop-blur-md">
         <div className="relative">
           <label className="text-[8px] uppercase tracking-[0.3em] opacity-40 mb-2 block font-black text-white">Search Fragment</label>
@@ -75,7 +73,6 @@ const Feed: React.FC<FeedProps> = ({ poems, onSelectPoem, currentUser }) => {
         </div>
       </div>
 
-      {/* Poems Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10">
         {filteredPoems.map((poem, index) => {
           const backgroundStyle = poem.backgroundColor || getAtmosphericGradient(poem.id);
@@ -92,6 +89,13 @@ const Feed: React.FC<FeedProps> = ({ poems, onSelectPoem, currentUser }) => {
                 background: backgroundStyle
               }}
             >
+              {/* Tight Tiled Watermark for Cards */}
+              <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.04] select-none" style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg width='80' height='30' viewBox='0 0 80 30' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle' fill='white' font-family='serif' font-size='12' font-weight='900' opacity='0.2'%3EECHO PAGES%3C/text%3E%3C/svg%3E")`,
+                backgroundRepeat: 'repeat',
+                transform: 'rotate(-10deg) scale(1.1)'
+              }}></div>
+
               <div className="flex-grow space-y-8 relative z-10">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -103,14 +107,13 @@ const Feed: React.FC<FeedProps> = ({ poems, onSelectPoem, currentUser }) => {
                     </span>
                   </div>
                   
-                  {/* MVP FEATURE 3: RESONANCE BAR */}
                   <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
                     <div 
                       className="h-full transition-all duration-1000 ease-out"
                       style={{ 
                         width: `${poem.score}%`, 
                         backgroundColor: resonanceColor,
-                        boxShadow: `0 0 8px ${resonanceColor}66`
+                        boxShadow: `0 0-8px ${resonanceColor}66`
                       }}
                     />
                   </div>

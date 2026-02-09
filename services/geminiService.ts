@@ -1,6 +1,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { PoemMetadata } from "../types.ts";
 
+export const runtime = "nodejs";
+
 const CACHE_KEY = 'echo_daily_line_v1';
 const CACHE_TS = 'echo_daily_ts_v1';
 
