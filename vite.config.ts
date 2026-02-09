@@ -3,12 +3,15 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
-    // Load environment variables from the current directory. 
-    // Passing '' as the third argument allows loading variables without the VITE_ prefix.
+    // loadEnv loads variables from .env files. 
+    // Passing '' as the 3rd arg allows it to load variables without the VITE_ prefix.
     const env = loadEnv(mode, process.cwd(), '');
     
-    // Determine the active API key, prioritizing 'API_KEY' but allowing 'GEMINI_API_KEY' as a fallback.
-    const apiKey = env.API_KEY || env.GEMINI_API_KEY || '';
+    /**
+     * Vercel environment variables are available in Node's process.env during build.
+     * We check both the loaded .env file and the Node process environment.
+     */
+    const apiKey = env.GEMINI_API_KEY || env.API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY || '';
 
     return {
       server: {
@@ -17,8 +20,10 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [react()],
       define: {
-        // This 'define' block bakes the values into the JS bundle at build time.
-        // It ensures process.env.API_KEY is available as required by the Gemini SDK.
+        /**
+         * Vite's 'define' performs a static string replacement in the source code.
+         * This satisfies the SDK's requirement for process.env.API_KEY.
+         */
         'process.env.API_KEY': JSON.stringify(apiKey),
         'process.env.GEMINI_API_KEY': JSON.stringify(apiKey)
       },

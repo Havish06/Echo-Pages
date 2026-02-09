@@ -23,9 +23,6 @@ export const GENRE_POOL = [
   "Ars Poetica", "Surreal", "Absurdist"
 ];
 
-/**
- * Extracts JSON even if wrapped in conversational text or markdown blocks.
- */
 const cleanJsonResponse = (text: string) => {
   if (!text) return {};
   try {
@@ -58,8 +55,16 @@ export const geminiService = {
     }
 
     try {
-      // Accessing process.env.API_KEY directly for SDK initialization as per guidelines.
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      /**
+       * Strictly access via process.env.API_KEY. 
+       * Vite replaces this with a string literal during build.
+       */
+      const key = process.env.API_KEY;
+      if (!key || key === 'undefined' || key === '""') {
+        throw new Error("API Key missing at runtime.");
+      }
+
+      const ai = new GoogleGenAI({ apiKey: key });
       const response = await ai.models.generateContent({
         model: CONFIG.DEFAULT_MODEL,
         contents: "Generate one hauntingly beautiful, short, introspective line of poetry. No quotation marks. No explanation.",
@@ -76,12 +81,12 @@ export const geminiService = {
 
   async analyzePoem(content: string, providedTitle?: string): Promise<PoemMetadata> {
     try {
-      // Accessing process.env.API_KEY directly for SDK initialization as per guidelines.
-      if (!process.env.API_KEY || process.env.API_KEY === 'undefined') {
+      const key = process.env.API_KEY;
+      if (!key || key === 'undefined' || key === '""') {
         throw new Error("Resonance Frequency Missing: process.env.API_KEY is not provisioned.");
       }
 
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: key });
       const isTitleMissing = !providedTitle || providedTitle.trim() === '' || providedTitle.toLowerCase() === 'untitled';
 
       const prompt = `Act as a literary critic for "Echo Pages". Analyze this fragment.
@@ -131,7 +136,6 @@ export const geminiService = {
     } catch (error: any) {
       console.warn("AI Analysis Failed (Graceful Fallback):", error);
       
-      // Explicit safety rejection
       if (error?.message?.toLowerCase().includes('safety') || error?.message?.toLowerCase().includes('candidate')) {
         return {
           genre: "Fragmentary",
@@ -145,7 +149,6 @@ export const geminiService = {
         };
       }
 
-      // Connectivity or Configuration issues return a "Safe" fallback to avoid blocking the UI
       return {
         genre: "Minimalist",
         score: 75,
