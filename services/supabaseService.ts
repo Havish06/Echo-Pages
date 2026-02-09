@@ -1,7 +1,5 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { Poem, LeaderboardEntry } from '../types.ts';
-import { ADMIN_CREDENTIALS } from '../constants.ts';
 
 const supabaseUrl = 'https://wctibhidceonfjmzxbrl.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjdGliaGlkY2VvbmZqbXp4YnJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2Mzg3NTYsImV4cCI6MjA4MjIxNDc1Nn0.8ZK2qKfAH56Y6rTfBhUidtWbNJhXGTP8IcuSsP9NLsw';
@@ -60,8 +58,6 @@ const mapFromDb = (data: any, forceVisibility?: 'read' | 'echoes'): Poem => ({
   author: data.author || 'Anonymous',
   userId: data.user_id || '',
   timestamp: data.created_at ? new Date(data.created_at).getTime() : Date.now(),
-  emotionTag: data.emotion_tag || 'Echo',
-  emotionalWeight: Number(data.emotional_weight) || 50,
   score: Number(data.score) || 0,
   tone: 'melancholic', 
   genre: data.genre || 'Echo',
@@ -87,8 +83,6 @@ export const supabaseService = {
       content: poem.content,
       author: poem.author,
       user_id: poem.userId,
-      emotion_tag: poem.emotionTag,
-      emotional_weight: poem.emotionalWeight,
       score: poem.score,
       genre: poem.genre,
       justification: poem.justification,
@@ -103,20 +97,12 @@ export const supabaseService = {
       content: poem.content,
       author: 'Admin',
       user_id: poem.userId || 'admin',
-      emotion_tag: poem.emotionTag,
-      emotional_weight: poem.emotionalWeight,
       score: poem.score,
       genre: poem.genre,
       justification: poem.justification,
       background_color: poem.backgroundColor
     }]).select();
     return (data && data[0]) ? mapFromDb(data[0], 'read') : null;
-  },
-
-  async updatePoem(id: string, visibility: 'read' | 'echoes', updates: any): Promise<Poem | null> {
-    const table = visibility === 'read' ? 'admin_poems' : 'echoes';
-    const { data, error } = await supabase.from(table).update(updates).eq('id', id).select();
-    return (data && data[0]) ? mapFromDb(data[0], visibility) : null;
   },
 
   async getLeaderboard(): Promise<LeaderboardEntry[]> {

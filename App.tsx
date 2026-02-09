@@ -18,7 +18,6 @@ import Leaderboard from './components/Leaderboard.tsx';
 import Auth from './components/Auth.tsx';
 import AdminPortal from './components/AdminPortal.tsx';
 
-// Expanded high-contrast atmospheric color pairs for deterministic fallback
 const ATMOSPHERIC_PALETTE = [
   ['#0f172a', '#1e1b4b'], ['#1e1b4b', '#450a0a'], ['#020617', '#1e293b'],
   ['#2d0a0a', '#000000'], ['#1e1b0b', '#451a03'], ['#082f49', '#0c4a6e'],
@@ -98,18 +97,9 @@ const App: React.FC = () => {
     window.addEventListener('hashchange', syncStateWithHash);
     syncStateWithHash();
     refreshData();
-
-    const channel = supabase.channel('global_echo_sync')
-      .on('postgres_changes', { event: '*', table: 'echoes', schema: 'public' }, () => refreshData())
-      .on('postgres_changes', { event: '*', table: 'admin_poems', schema: 'public' }, () => refreshData())
-      .subscribe();
-
+    const channel = supabase.channel('global_echo_sync').on('postgres_changes', { event: '*', table: 'echoes', schema: 'public' }, () => refreshData()).subscribe();
     geminiService.getDailyLine().then(line => setDailyLine(line));
-
-    return () => {
-      window.removeEventListener('hashchange', syncStateWithHash);
-      supabase.removeChannel(channel);
-    };
+    return () => window.removeEventListener('hashchange', syncStateWithHash);
   }, []);
 
   const navigateTo = (view: View, poemId: string | null = null) => {
@@ -126,15 +116,9 @@ const App: React.FC = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const isAdminUser = newPoem.userId === 'admin' || (!!session?.user?.email && ADMIN_EMAILS.includes(session.user.email));
-      
-      // AI analysis - shared for both Read and Echoes
       const meta = await geminiService.analyzePoem(newPoem.content || '', newPoem.title);
-      
-      // Final Safety Barrier
       if (!meta.isSafe) throw new Error(meta.errorReason || "Forbidden Resonance");
 
-      // MVP FEATURE 1: TITLE GENERATION
-      // If no title provided by user, always use the AI generated one.
       const finalTitle = (newPoem.title && newPoem.title.trim() !== "" && newPoem.title.toLowerCase() !== 'untitled') 
         ? newPoem.title 
         : meta.suggestedTitle;
@@ -142,8 +126,6 @@ const App: React.FC = () => {
       const fullPoem: Partial<Poem> = {
         ...newPoem,
         title: finalTitle,
-        emotionTag: meta.emotionTag,
-        emotionalWeight: meta.emotionalWeight,
         score: meta.score,
         genre: meta.genre,
         justification: meta.justification,
@@ -151,21 +133,14 @@ const App: React.FC = () => {
         visibility: isAdminUser ? 'read' : 'echoes'
       };
 
-      let saved: Poem | null = isAdminUser 
+      let saved = isAdminUser 
         ? await supabaseService.createAdminPoem(fullPoem)
         : await supabaseService.createEcho(fullPoem);
 
       if (!saved) throw new Error("Sync failure");
-      
-      if (isAdminUser) {
-        setAdminPoems(prev => [saved!, ...prev]);
-        navigateTo('feed');
-      } else {
-        setUserPoems(prev => [saved!, ...prev]);
-        navigateTo('user-feed');
-      }
+      refreshData();
+      navigateTo(isAdminUser ? 'feed' : 'user-feed');
     } catch (err) {
-      console.error("Publication Error:", err);
       throw err; 
     }
   };
@@ -188,11 +163,7 @@ const App: React.FC = () => {
                 {currentView === 'feed' ? 'Curated Introspection' : 'Community Resonance'}
               </p>
             </header>
-            <Feed 
-              poems={currentView === 'feed' ? adminPoems : userPoems} 
-              onSelectPoem={(id) => navigateTo('detail', id)} 
-              currentUser={currentUser}
-            />
+            <Feed poems={currentView === 'feed' ? adminPoems : userPoems} onSelectPoem={(id) => navigateTo('detail', id)} currentUser={currentUser} />
           </div>
         )}
         {currentView === 'detail' && selectedPoem && (

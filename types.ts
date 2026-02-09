@@ -15,8 +15,6 @@ export interface Poem {
   author: string; // The display name
   userId: string;
   timestamp: number;
-  emotionTag: string;
-  emotionalWeight: number; 
   score: number; // Genre match accuracy
   tone: 'melancholic' | 'hopeful' | 'livid' | 'nostalgic';
   genre: string;
@@ -36,8 +34,6 @@ export interface LeaderboardEntry {
 export type View = 'home' | 'feed' | 'user-feed' | 'detail' | 'create' | 'about' | 'admin' | 'contact' | 'privacy' | 'profile' | 'leaderboard' | 'auth';
 
 export interface PoemMetadata {
-  emotionTag: string;
-  emotionalWeight: number;
   suggestedTitle: string;
   backgroundGradient: string;
   score: number;

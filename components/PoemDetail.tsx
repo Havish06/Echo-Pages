@@ -80,7 +80,6 @@ const PoemDetail: React.FC<PoemDetailProps> = ({ poem, onBack, currentUser }) =>
                 )}
               </div>
               
-              {/* Resonance Bar (MVP Feature 3) */}
               {!isAnalyzing && (
                 <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
                   <div 
@@ -110,39 +109,21 @@ const PoemDetail: React.FC<PoemDetailProps> = ({ poem, onBack, currentUser }) =>
             {poem.content}
           </div>
 
-          <div className="pt-16 grid grid-cols-1 md:grid-cols-2 items-end border-t border-white/10 gap-10">
-            <div className="space-y-6">
-              <p className="text-[9px] uppercase tracking-[0.5em] opacity-40 font-black">Atmospheric Frequency</p>
-              <div className="flex items-center gap-8">
-                <span className="instrument-serif text-4xl md:text-6xl font-medium tracking-wide">
-                  {isAnalyzing ? "..." : poem.emotionTag}
-                </span>
-                <div className="h-10 w-[1px] bg-white/20" />
-                <div className="flex flex-col">
-                  <span className="text-[9px] opacity-40 uppercase font-black tracking-widest mb-1">Intensity</span>
-                  <span className="text-xl font-mono text-white/90 font-bold">
-                    {isAnalyzing ? "--" : `${poem.emotionalWeight}%`}
-                  </span>
-                </div>
+          <div className="pt-16 border-t border-white/10 flex justify-between items-center">
+             <div className="flex flex-col gap-1">
+                <p className="text-[9px] uppercase tracking-[0.5em] opacity-40 font-black">Resonance Origin</p>
+                <span className="text-white text-[10px] uppercase tracking-widest">@{poem.author}</span>
               </div>
-            </div>
-
-            <div className="flex md:justify-end">
               <button 
                 onClick={handleCopyLink}
-                className="px-10 py-4 border border-white/20 hover:border-white hover:bg-white/10 transition-all text-[10px] uppercase tracking-[0.4em] text-white font-black rounded-sm shadow-xl backdrop-blur-md"
+                className="px-8 py-3 border border-white/20 hover:border-white hover:bg-white/10 transition-all text-[9px] uppercase tracking-[0.4em] text-white font-black rounded-sm shadow-xl backdrop-blur-md"
               >
-                {copyStatus === 'copied' ? 'Link Captured' : 'Copy Fragment Link'}
+                {copyStatus === 'copied' ? 'Link Captured' : 'Copy Link'}
               </button>
-            </div>
           </div>
 
           <div className="pt-12 flex justify-between items-center opacity-40 text-[9px] uppercase tracking-[0.5em] font-black border-t border-white/5">
             <div className="flex flex-col gap-1">
-              <span className="opacity-40">Origin</span>
-              <span className="text-white">@{poem.author}</span>
-            </div>
-            <div className="flex flex-col gap-1 text-right">
               <span className="opacity-40">Frequency Date</span>
               <span className="text-white">{new Date(poem.timestamp).toLocaleDateString('en-GB').replace(/\//g, ' . ')}</span>
             </div>

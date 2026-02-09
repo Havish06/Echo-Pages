@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
@@ -16,8 +15,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
     <script>
-        // Polyfill process for browser environment to prevent crashes when accessing API keys
-        window.process = window.process || { env: {} };
+        // Safer polyfill to ensure process.env exists without wiping platform-injected variables
+        window.process = window.process || {};
+        window.process.env = window.process.env || {};
         
         tailwind.config = {
             darkMode: 'class',

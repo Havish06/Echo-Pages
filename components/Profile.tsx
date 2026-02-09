@@ -24,8 +24,6 @@ const Profile: React.FC = () => {
         author: d.author || 'Anonymous',
         userId: d.user_id || '',
         timestamp: new Date(d.created_at).getTime(),
-        emotionTag: d.emotion_tag || 'Echo',
-        emotionalWeight: Number(d.emotional_weight) || 50,
         score: Number(d.score) || 0,
         tone: 'melancholic', 
         genre: d.genre || 'Echo',
@@ -56,7 +54,7 @@ const Profile: React.FC = () => {
       });
       setIsEditing(false);
     } catch (err) {
-      alert("Metamorphosis failed. The identity remains unchanged.");
+      alert("Metamorphosis failed.");
     } finally {
       setLoading(false);
     }
@@ -205,9 +203,6 @@ const Profile: React.FC = () => {
               </div>
             );
           })}
-          {userEchoes.length === 0 && (
-            <div className="text-center py-20 opacity-20 italic serif-font text-xl">The void awaits your first whisper.</div>
-          )}
         </div>
       </section>
     </div>
