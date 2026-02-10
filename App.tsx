@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { Poem, View } from './types.ts';
 import { geminiService } from './services/geminiService.ts';
 import { supabaseService, supabase } from './services/supabaseService.ts';
@@ -141,6 +142,7 @@ const App: React.FC = () => {
         {currentView === 'privacy' && <Privacy />}
       </main>
       <Footer onContactClick={() => navigateTo('contact')} onPrivacyClick={() => navigateTo('privacy')} />
+      <SpeedInsights />
     </div>
   );
 };
