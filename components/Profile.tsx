@@ -19,6 +19,7 @@ const Profile: React.FC<ProfileProps> = ({ userId: externalUserId }) => {
   const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const isOwnProfile = !externalUserId || (currentUser && currentUser.id === externalUserId);
   const targetId = externalUserId || currentUser?.id;
@@ -109,6 +110,21 @@ const Profile: React.FC<ProfileProps> = ({ userId: externalUserId }) => {
       loadProfileData(targetId);
     } catch (err) {
       console.error("Follow action failed", err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeletePoem = async (poemId: string) => {
+    setActionLoading(true);
+    try {
+      const success = await supabaseService.deleteEcho(poemId);
+      if (success) {
+        setConfirmDeleteId(null);
+        if (targetId) loadProfileData(targetId);
+      }
+    } catch (err) {
+      console.error("Delete failed", err);
     } finally {
       setActionLoading(false);
     }
@@ -247,12 +263,42 @@ const Profile: React.FC<ProfileProps> = ({ userId: externalUserId }) => {
                     </div>
                   </div>
 
-                  <button 
-                    onClick={() => window.location.hash = `#/p/${echo.id}`}
-                    className="px-6 py-2 border border-white/10 hover:border-white text-[9px] uppercase tracking-widest opacity-40 hover:opacity-100 transition-all font-black text-white"
-                  >
-                    Enter Frequency
-                  </button>
+                  <div className="flex gap-4">
+                    <button 
+                      onClick={() => window.location.hash = `#/p/${echo.id}`}
+                      className="px-6 py-2 border border-white/10 hover:border-white text-[9px] uppercase tracking-widest opacity-40 hover:opacity-100 transition-all font-black text-white"
+                    >
+                      Enter Frequency
+                    </button>
+                    {isOwnProfile && (
+                      <div className="flex gap-2">
+                        {confirmDeleteId === echo.id ? (
+                          <>
+                            <button 
+                              onClick={() => handleDeletePoem(echo.id)}
+                              disabled={actionLoading}
+                              className="px-4 py-2 bg-red-500/20 border border-red-500/50 text-[9px] uppercase tracking-widest font-black text-red-400 hover:bg-red-500/30 transition-all"
+                            >
+                              Confirm
+                            </button>
+                            <button 
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="px-4 py-2 border border-white/10 text-[9px] uppercase tracking-widest font-black text-white/40 hover:text-white transition-all"
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <button 
+                            onClick={() => setConfirmDeleteId(echo.id)}
+                            className="px-6 py-2 border border-red-500/10 hover:border-red-500/40 text-[9px] uppercase tracking-widest opacity-40 hover:opacity-100 transition-all font-black text-red-400"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             );
