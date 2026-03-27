@@ -1,45 +1,27 @@
-export interface UserProfile {
-  id: string;
-  username: string;
-  displayName: string;
-  avatarUrl?: string;
-  totalPoems: number;
-  avgScore: number;
-  topGenre: string;
-}
-
-export interface Poem {
-  id: string;
-  title: string;
-  content: string;
-  author: string; // The display name
-  userId: string;
-  timestamp: number;
-  score: number; // Genre match accuracy
-  tone: 'melancholic' | 'hopeful' | 'livid' | 'nostalgic';
-  genre: string;
-  justification?: string;
-  backgroundColor: string;
-  visibility: 'read' | 'echoes';
-}
-
-export interface LeaderboardEntry {
-  userId: string;
-  username: string;
-  displayName: string;
-  score: number;
-  poemCount: number;
-}
-
-export type View = 'home' | 'feed' | 'user-feed' | 'detail' | 'create' | 'about' | 'admin' | 'contact' | 'privacy' | 'profile' | 'leaderboard' | 'auth';
-
-export interface PoemMetadata {
-  suggestedTitle: string;
-  backgroundGradient: string;
-  score: number;
-  genre: string;
-  justification: string;
-  isSafe: boolean;
-  containsRestricted: boolean;
-  errorReason?: string;
+{
+  "name": "echo-pages-original",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@google/genai": "^1.34.0",
+    "@supabase/supabase-js": "^2.100.1",
+    "path": "^0.12.7",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.1.3",
+    "typescript": "~5.8.2",
+    "vite": "^7.3.1"
+  }
 }
