@@ -9,7 +9,7 @@ export const CONFIG = {
   GEMINI_API_KEY: process.env.API_KEY,
   
   // Primary model for generation and analysis
-  DEFAULT_MODEL: 'gemini-2.5-flash-preview',
+  DEFAULT_MODEL: 'gemini-2.5-flash',
   
   // Feature flags and limits
   MAX_TITLE_REGEN: 3,
