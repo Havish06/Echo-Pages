@@ -176,24 +176,28 @@ export const supabaseService = {
   },
 
   async getUserProfile(userId: string): Promise<UserProfile | null> {
-    const [echoes, followers, following, userData] = await Promise.all([
-      supabase.from('echoes').select('score').eq('user_id', userId),
-      supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId),
-      supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', userId),
-      supabase.auth.getUser() // This only gets current user, real profiles table needed for others
-    ]);
-    
-    const totalPoems = echoes.data?.length || 0;
-    const avgScore = totalPoems > 0 ? Math.round(echoes.data!.reduce((acc, c) => acc + (c.score || 0), 0) / totalPoems) : 0;
+    try {
+      const [echoes, followers, following] = await Promise.all([
+        supabase.from('echoes').select('score').eq('user_id', userId),
+        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId),
+        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', userId)
+      ]);
+      
+      const totalPoems = echoes.data?.length || 0;
+      const avgScore = totalPoems > 0 ? Math.round(echoes.data!.reduce((acc, c) => acc + (c.score || 0), 0) / totalPoems) : 0;
 
-    return {
-      id: userId,
-      username: 'observer',
-      displayName: 'Observer',
-      totalPoems,
-      avgScore,
-      followersCount: followers.count || 0,
-      followingCount: following.count || 0
-    };
+      return {
+        id: userId,
+        username: 'observer',
+        displayName: 'Observer',
+        totalPoems,
+        avgScore,
+        followersCount: followers.count || 0,
+        followingCount: following.count || 0
+      };
+    } catch (err) {
+      console.error("Error fetching user profile:", err);
+      return null;
+    }
   }
 };
