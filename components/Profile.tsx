@@ -76,8 +76,26 @@ const Profile: React.FC<ProfileProps> = ({ userId: externalUserId }) => {
   };
 
   useEffect(() => {
-    if (targetId) loadProfileData(targetId);
-  }, [targetId]);
+    const init = async () => {
+      setLoading(true);
+      try {
+        const { data } = await supabase.auth.getSession();
+        const sessionUser = data.session?.user || null;
+        setCurrentUser(sessionUser);
+
+        const uid = externalUserId || sessionUser?.id;
+        if (uid) {
+          await loadProfileData(uid);
+        } else {
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Profile initialization failed", err);
+        setLoading(false);
+      }
+    };
+    init();
+  }, [externalUserId]);
 
   const handleUpdateProfile = async () => {
     setActionLoading(true);
@@ -136,6 +154,7 @@ const Profile: React.FC<ProfileProps> = ({ userId: externalUserId }) => {
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center italic instrument-serif text-2xl opacity-40">Tuning into frequency...</div>;
+  if (!profile && !isOwnProfile) return <div className="min-h-screen flex items-center justify-center italic instrument-serif text-2xl opacity-40">Identity lost to the void.</div>;
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-20 space-y-20 animate-fade-in">
