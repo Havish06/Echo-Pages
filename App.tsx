@@ -1,5 +1,5 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { SpeedInsights } from '@vercel/speed-insights/react';
 import { Poem, View } from './types.ts';
 import { geminiService } from './services/geminiService.ts';
 import { supabaseService, supabase } from './services/supabaseService.ts';
@@ -22,11 +22,14 @@ import AdminPortal from './components/AdminPortal.tsx';
 const App: React.FC = () => {
   const [adminPoems, setAdminPoems] = useState<Poem[]>([]);
   const [userPoems, setUserPoems] = useState<Poem[]>([]);
+  const [followingIds, setFollowingIds] = useState<string[]>([]);
   const [currentView, setCurrentView] = useState<View>('home');
   const [previousView, setPreviousView] = useState<View>('home');
   const [selectedPoemId, setSelectedPoemId] = useState<string | null>(null);
+  const [targetUserId, setTargetUserId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [dailyLine, setDailyLine] = useState<string>(() => localStorage.getItem('echo_daily_line_v1') || "Silence is the only thing we truly own.");
+  const [editPoem, setEditPoem] = useState<Poem | null>(null);
 
   const currentViewRef = useRef<View>('home');
   useEffect(() => { currentViewRef.current = currentView; }, [currentView]);
@@ -34,14 +37,24 @@ const App: React.FC = () => {
   const syncStateWithHash = async () => {
     const hash = window.location.hash || '#/';
     const { data: { session } } = await supabase.auth.getSession();
-    setCurrentUser(session?.user ?? null);
+    const u = session?.user ?? null;
+    setCurrentUser(u);
+    
+    if (u) {
+      const ids = await supabaseService.getFollowingIds(u.id);
+      setFollowingIds(ids);
+    }
     
     let targetView: View = 'home';
     let targetPoemId: string | null = null;
+    let tUserId: string | null = null;
 
     if (hash.startsWith('#/p/')) {
       targetView = 'detail';
       targetPoemId = hash.replace('#/p/', '');
+    } else if (hash.startsWith('#/u/')) {
+      targetView = 'user-profile';
+      tUserId = hash.replace('#/u/', '');
     } else {
       const views: Record<string, View> = {
         '#/read': 'feed', '#/echoes': 'user-feed', '#/create': 'create', '#/about': 'about',
@@ -58,12 +71,17 @@ const App: React.FC = () => {
     
     if (currentViewRef.current !== 'detail' && currentViewRef.current !== targetView) setPreviousView(currentViewRef.current);
     setSelectedPoemId(targetPoemId);
+    setTargetUserId(tUserId);
     setCurrentView(targetView);
   };
 
   const refreshData = async () => {
     try {
-      const [admins, users] = await Promise.all([supabaseService.getAdminPoems(), supabaseService.getEchoes()]);
+      const uId = currentUser?.id;
+      const [admins, users] = await Promise.all([
+        supabaseService.getAdminPoems(uId),
+        supabaseService.getEchoes(uId)
+      ]);
       setAdminPoems(admins || []);
       setUserPoems(users || []);
     } catch (err) { console.error("Data Sync Error:", err); }
@@ -72,16 +90,20 @@ const App: React.FC = () => {
   useEffect(() => {
     window.addEventListener('hashchange', syncStateWithHash);
     syncStateWithHash();
-    refreshData();
     geminiService.getDailyLine().then(line => setDailyLine(line));
     return () => window.removeEventListener('hashchange', syncStateWithHash);
   }, []);
 
-  const navigateTo = (view: View, poemId: string | null = null) => {
+  useEffect(() => {
+    refreshData();
+  }, [currentUser, currentView]);
+
+  const navigateTo = (view: View, id: string | null = null) => {
     const routes: Record<View, string> = {
       'home': '#/', 'feed': '#/read', 'user-feed': '#/echoes', 'create': '#/create',
       'about': '#/about', 'contact': '#/contact', 'privacy': '#/privacy', 'admin': '#/admin',
-      'profile': '#/profile', 'leaderboard': '#/ranks', 'auth': '#/auth', 'detail': `#/p/${poemId}`
+      'profile': '#/profile', 'leaderboard': '#/ranks', 'auth': '#/auth', 
+      'detail': `#/p/${id}`, 'user-profile': `#/u/${id}`
     };
     window.location.hash = routes[view];
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -97,6 +119,7 @@ const App: React.FC = () => {
       title: (newPoem.title && newPoem.title.trim() !== "" && newPoem.title.toLowerCase() !== 'untitled') ? newPoem.title : meta.suggestedTitle,
       score: meta.score,
       genre: meta.genre,
+      tone: meta.tone,
       justification: meta.justification,
       backgroundColor: meta.backgroundGradient,
       visibility: isAdminUser ? 'read' : 'echoes'
@@ -106,6 +129,32 @@ const App: React.FC = () => {
     if (!saved) throw new Error("Transmission Failed");
     refreshData();
     navigateTo(isAdminUser ? 'feed' : 'user-feed');
+  };
+
+  const handleEdit = (poem: Poem) => {
+    setEditPoem(poem);
+    navigateTo('create');
+  };
+
+  const handleUpdate = async (id: string, updates: Partial<Poem>) => {
+    const success = await supabaseService.updateEcho(id, updates);
+    if (success) {
+      setEditPoem(null);
+      refreshData();
+      navigateTo('detail', id);
+    } else {
+      throw new Error("Update failed");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm("This echo will be lost to the void forever. Proceed?")) {
+      const success = await supabaseService.deleteEcho(id);
+      if (success) {
+        refreshData();
+        navigateTo('user-feed');
+      }
+    }
   };
 
   const allPoems = [...adminPoems, ...userPoems];
@@ -126,23 +175,42 @@ const App: React.FC = () => {
                 {currentView === 'feed' ? 'Curated Introspection' : 'Community Resonance'}
               </p>
             </header>
-            <Feed poems={currentView === 'feed' ? adminPoems : userPoems} onSelectPoem={(id) => navigateTo('detail', id)} />
+            <Feed 
+              poems={currentView === 'feed' ? adminPoems : userPoems} 
+              onSelectPoem={(id) => navigateTo('detail', id)} 
+              followingIds={followingIds}
+              onNavigateUser={(userId) => navigateTo('user-profile', userId)}
+            />
           </div>
         )}
         {currentView === 'detail' && selectedPoem && (
-          <PoemDetail poem={selectedPoem} onBack={() => navigateTo(previousView)} />
+          <PoemDetail 
+            poem={selectedPoem} 
+            onBack={() => navigateTo(previousView)} 
+            currentUser={currentUser}
+            onEdit={() => handleEdit(selectedPoem)}
+            onDelete={() => handleDelete(selectedPoem.id)}
+            onNavigateUser={(userId) => navigateTo('user-profile', userId)}
+          />
         )}
-        {currentView === 'create' && <CreatePoem onPublish={handlePublish} onCancel={() => navigateTo('home')} />}
+        {currentView === 'create' && (
+          <CreatePoem 
+            onPublish={handlePublish} 
+            onUpdate={handleUpdate}
+            initialPoem={editPoem}
+            onCancel={() => { setEditPoem(null); navigateTo('home'); }} 
+          />
+        )}
         {currentView === 'admin' && <AdminPortal onPublish={handlePublish} onCancel={() => navigateTo('home')} />}
         {currentView === 'leaderboard' && <Leaderboard />}
         {currentView === 'profile' && <Profile />}
+        {currentView === 'user-profile' && <Profile userId={targetUserId} />}
         {currentView === 'auth' && <Auth />}
         {currentView === 'about' && <About />}
         {currentView === 'contact' && <Contact />}
         {currentView === 'privacy' && <Privacy />}
       </main>
       <Footer onContactClick={() => navigateTo('contact')} onPrivacyClick={() => navigateTo('privacy')} />
-      <SpeedInsights />
     </div>
   );
 };
