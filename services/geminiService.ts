@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { PoemMetadata } from "../types.ts";
 import { CONFIG } from "../config.ts";
@@ -50,9 +51,10 @@ export const geminiService = {
       const ai = new GoogleGenAI({ apiKey: key });
       const isTitleMissing = !providedTitle || providedTitle.trim() === '' || providedTitle.toLowerCase() === 'untitled';
 
-      // Enhanced prompt with strict safety instructions
+      // Enhanced prompt with strict safety instructions and tone categorization
       const systemInstruction = `You are the Sanctuary Guardian for "Echo Pages", a minimalist poetry platform. 
-      Your task is to analyze poetry for genre, title, and most importantly, SAFETY.
+      Your task is to analyze poetry for genre, title, tone, and most importantly, SAFETY.
+      Available Tones: melancholic, hopeful, livid, nostalgic.
       REJECT (isSafe: false) if the text contains:
       - Explicit violence, hate speech, or dehumanizing language.
       - Explicit sexual content or graphic anatomical descriptions.
@@ -71,6 +73,7 @@ export const geminiService = {
             type: Type.OBJECT,
             properties: {
               genre: { type: Type.STRING },
+              tone: { type: Type.STRING, description: "One of: melancholic, hopeful, livid, nostalgic" },
               score: { type: Type.INTEGER },
               justification: { type: Type.STRING },
               suggestedTitle: { type: Type.STRING },
@@ -78,7 +81,7 @@ export const geminiService = {
               isSafe: { type: Type.BOOLEAN },
               rejectionReason: { type: Type.STRING, description: "If isSafe is false, explain why concisely." }
             },
-            required: ["genre", "score", "justification", "suggestedTitle", "backgroundGradient", "isSafe"]
+            required: ["genre", "tone", "score", "justification", "suggestedTitle", "backgroundGradient", "isSafe"]
           }
         }
       });
@@ -86,6 +89,7 @@ export const geminiService = {
       const result = JSON.parse(response.text || "{}");
       return {
         genre: result.genre || "Minimalist",
+        tone: result.tone || "melancholic",
         score: Math.max(0, Math.min(100, result.score || 70)),
         justification: result.justification || "Atmospheric resonance detected.",
         suggestedTitle: result.suggestedTitle || "A Fragmented Echo",
@@ -101,6 +105,7 @@ export const geminiService = {
       
       return {
         genre: "Minimalist",
+        tone: "melancholic",
         score: 75,
         justification: "Resonance persists despite external silence.",
         suggestedTitle: (providedTitle && providedTitle !== 'Untitled') ? providedTitle : "Silent Fragment",
