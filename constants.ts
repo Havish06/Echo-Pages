@@ -4,7 +4,7 @@ export const INITIAL_POEMS: Poem[] = [];
 
 export const ADMIN_CREDENTIALS = {
   email: 'admin@echopages.com',
-  password: '**********'
+  password: 'Havish@2006'
 };
 
 export const ADMIN_EMAILS = [ADMIN_CREDENTIALS.email];
