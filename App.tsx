@@ -203,7 +203,7 @@ const App: React.FC = () => {
         )}
         {currentView === 'admin' && <AdminPortal onPublish={handlePublish} onCancel={() => navigateTo('home')} />}
         {currentView === 'leaderboard' && <Leaderboard />}
-        {currentView === 'profile' && <Profile />}
+        {currentView === 'profile' && currentUser && <Profile userId={currentUser.id} />}
         {currentView === 'user-profile' && <Profile userId={targetUserId} />}
         {currentView === 'auth' && <Auth />}
         {currentView === 'about' && <About />}
