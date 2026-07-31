@@ -1,0 +1,29 @@
+# terraform.tfvars.example — copy to terraform.tfvars and edit.
+# terraform.tfvars is gitignored; this example is committed.
+
+aws_region                       = "ap-south-1"
+name_prefix                      = "echo-pages"
+vpc_cidr                         = "10.200.0.0/22"
+availability_zones               = ["ap-south-1a", "ap-south-1b", "ap-south-1c"]
+public_subnet_cidrs              = ["10.200.0.0/26", "10.200.0.64/26", "10.200.0.128/26"]
+
+instance_type                    = "t3.micro"
+asg_min_size                     = 2
+asg_desired_capacity             = 2
+asg_max_size                     = 6
+
+target_request_count_per_target  = 1000
+cpu_scale_out_threshold          = 70
+cpu_scale_in_threshold           = 30
+
+health_check_path                = "/health"
+
+# Build the app during terraform apply? Only for local applies with Node 20+
+# installed. The GitHub Actions CI workflow (deploy.yml) builds the app instead,
+# so leave this false when provisioning via Actions.
+build_rebuild_on_apply           = false
+app_source_dir                   = "../.."
+
+# Optional — only set when you own a domain and uncomment the ACM blocks in alb.tf
+# domain_name                   = "echo-pages.com"
+# hosted_zone_id                = "Z0123456ABCDEF"

@@ -1,27 +1,68 @@
-{
-  "name": "echo-pages-original",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "lint": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@google/genai": "^1.34.0",
-    "@supabase/supabase-js": "^2.100.1",
-    "path": "^0.12.7",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3"
-  },
-  "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^5.1.3",
-    "typescript": "~5.8.2",
-    "vite": "^7.3.1"
-  }
+/**
+ * Echo Pages — shared type definitions
+ */
+
+export type View =
+  | 'home'
+  | 'feed'
+  | 'user-feed'
+  | 'create'
+  | 'about'
+  | 'contact'
+  | 'privacy'
+  | 'admin'
+  | 'profile'
+  | 'leaderboard'
+  | 'auth'
+  | 'detail'
+  | 'user-profile';
+
+export interface Poem {
+  id: string;
+  title: string;
+  content: string;
+  author: string;
+  userId: string;
+  timestamp: number;
+  score: number;
+  genre: string;
+  tone: string;
+  justification: string;
+  backgroundColor: string;
+  visibility: 'read' | 'echoes';
+  isEdited: boolean;
+  // Optional in some legacy components but present in the DB shape.
+  likesCount?: number;
+  dislikesCount?: number;
+}
+
+export interface PoemMetadata {
+  genre: string;
+  tone: string;
+  score: number;
+  justification: string;
+  suggestedTitle: string;
+  backgroundGradient: string;
+  isSafe: boolean;
+  containsRestricted: boolean;
+  errorReason?: string;
+}
+
+export interface LeaderboardEntry {
+  userId: string;
+  username: string;
+  displayName: string;
+  score: number;
+  poemCount: number;
+}
+
+export interface UserProfile {
+  id: string;
+  username: string;
+  displayName: string;
+  totalPoems: number;
+  avgScore: number;
+  followersCount: number;
+  followingCount: number;
+  avatarUrl?: string;
 }

@@ -1,0 +1,149 @@
+name: Build & Deploy to AWS
+
+# Builds the Echo Pages SPA and rolls it out to the EC2 fleet behind the ALB.
+#
+# Flow:
+#   1. npm ci && npm run build        → produces dist/
+#   2. aws s3 sync                    → uploads dist/ to the artifacts bucket
+#   3. start-instance-refresh         → ASG replaces instances → new ones pull
+#                                        latest dist on boot via user-data
+#
+# Required GitHub Actions secrets:
+#   AWS_ACCESS_KEY_ID      — IAM user key with s3:PutObject on the artifacts bucket
+#   AWS_SECRET_ACCESS_KEY  — matching secret
+#   API_KEY                — Gemini API key (injected by Vite at build time)
+#   ARTIFACTS_BUCKET       — name of the S3 artifacts bucket (output of `terraform apply`)
+#   ASG_NAME               — Auto Scaling Group name (output of `terraform apply`)
+#   AWS_REGION             — ap-south-1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'index.tsx'
+      - 'App.tsx'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.ts'
+      - 'tsconfig.json'
+      - 'types.ts'
+      - 'constants.ts'
+      - 'config.ts'
+      - 'utils.ts'
+      - 'services/**'
+      - 'components/**'
+      - 'public/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-echo-pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    name: Build, sync, and refresh ASG
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION || 'ap-south-1' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check infra-provisioned secrets are present
+        id: infra_ready
+        env:
+          ARTIFACTS_BUCKET: ${{ secrets.ARTIFACTS_BUCKET }}
+          ASG_NAME: ${{ secrets.ASG_NAME }}
+        run: |
+          if [ -z "$ARTIFACTS_BUCKET" ] || [ -z "$ASG_NAME" ]; then
+            echo "::notice::Infra not provisioned yet — skipping app deploy."
+            echo "::notice::After terraform-apply.yml succeeds, add ARTIFACTS_BUCKET and ASG_NAME to repo secrets, then re-run this workflow."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Node.js
+        if: steps.infra_ready.outputs.skip != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        if: steps.infra_ready.outputs.skip != 'true'
+        run: npm ci
+
+      - name: Build
+        if: steps.infra_ready.outputs.skip != 'true'
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.API_KEY }}
+        run: npm run build
+
+      - name: Verify build output
+        if: steps.infra_ready.outputs.skip != 'true'
+        run: |
+          test -d dist || (echo "::error::dist/ not produced"; exit 1)
+          test -f dist/index.html || (echo "::error::dist/index.html missing"; exit 1)
+          echo "Build artifacts:" && ls -la dist
+
+      - name: Configure AWS credentials
+        if: steps.infra_ready.outputs.skip != 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Sync dist/ to S3 artifacts bucket
+        if: steps.infra_ready.outputs.skip != 'true'
+        run: |
+          aws s3 sync dist/ "s3://${{ secrets.ARTIFACTS_BUCKET }}/dist/" --delete --no-progress
+          echo ">>> Uploaded build to s3://${{ secrets.ARTIFACTS_BUCKET }}/dist/"
+
+      - name: Trigger ASG instance refresh (rolling deploy)
+        if: steps.infra_ready.outputs.skip != 'true'
+        env:
+          ASG_NAME: ${{ secrets.ASG_NAME }}
+        run: |
+          # Roll out the new artifacts: ASG replaces instances in batches,
+          # the bootstrap user-data on each new instance pulls the fresh dist.
+          aws autoscaling start-instance-refresh \
+            --auto-scaling-group-name "$ASG_NAME" \
+            --strategy Rolling \
+            --preferences '{"InstanceWarmup":120,"MinHealthyPercentage":50,"CheckpointPercentages":[50,100]}'
+
+      - name: Wait for instance refresh to complete
+        if: steps.infra_ready.outputs.skip != 'true'
+        env:
+          ASG_NAME: ${{ secrets.ASG_NAME }}
+        run: |
+          # Poll the in-progress refresh until it ends (max ~15 min).
+          deadline=$(( $(date +%s) + 900 ))
+          while :; do
+            resp=$(aws autoscaling describe-instance-refreshes \
+                     --auto-scaling-group-name "$ASG_NAME" \
+                     --max-records 1 \
+                     --query "InstanceRefreshes[0].{Status:Status,EndTime:EndTime}" \
+                     --output json)
+            status=$(echo "$resp" | jq -r '.Status')
+            echo "instance-refresh status: $status"
+            case "$status" in
+              Successful) echo ">>> Deploy complete"; exit 0 ;;
+              Failed|Cancelled) echo "::error::Instance refresh $status"; exit 1 ;;
+            esac
+            if [ "$(date +%s)" -gt "$deadline" ]; then
+              echo "::warning::Timed out waiting for instance refresh; check AWS console"
+              exit 1
+            fi
+            sleep 30
+          done

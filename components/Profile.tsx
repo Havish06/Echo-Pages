@@ -52,7 +52,9 @@ const Profile: React.FC<ProfileProps> = ({ userId: externalUserId }) => {
           genre: d.genre || 'Echo',
           tone: d.tone || 'melancholic',
           backgroundColor: d.background_color || '',
-          visibility: 'echoes',
+          visibility: 'echoes' as const,
+          justification: d.justification || '',
+          isEdited: d.is_edited || false,
           likesCount: 0, // Placeholder
           dislikesCount: 0 // Placeholder
         })));
