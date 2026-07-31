@@ -73,10 +73,10 @@ There is no built-in AWS managed policy that exactly matches; the easiest path f
 If you'd rather run Terraform locally instead of via GitHub Actions:
 
 ```bash
-export AWS_ACCESS_KEY_ID=...
-export AWS_SECRET_ACCESS_KEY=...
+export AWS_ACCESS_KEY_ID=<your_aws_access_key_id>
+export AWS_SECRET_ACCESS_KEY=<your_aws_secret_access_key>
 export AWS_REGION=ap-south-1
-export API_KEY=your_gemini_key
+export API_KEY=<your_gemini_api_key>
 export GEMINI_API_KEY=$API_KEY
 
 # Local applies can ALSO build+seed the artifacts bucket in one shot —
@@ -95,7 +95,7 @@ terraform apply
 3. **Node.js 20+** and **npm** — the bootstrap `null_resource` runs `npm ci && npm run build` and `aws s3 sync` locally on `terraform apply` (only when `build_rebuild_on_apply = true`).
 4. **The Gemini API key** — set as an environment variable before applying:
    ```bash
-   export API_KEY="your_gemini_key"        # consumed by Vite at build time
+   export API_KEY="<your_gemini_api_key>"        # consumed by Vite at build time
    export GEMINI_API_KEY="$API_KEY"
    ```
 
