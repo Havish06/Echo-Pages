@@ -17,6 +17,7 @@ import Profile from './components/Profile.tsx';
 import Leaderboard from './components/Leaderboard.tsx';
 import Auth from './components/Auth.tsx';
 import AdminPortal from './components/AdminPortal.tsx';
+import ErrorPage from './components/ErrorPage.tsx';
 
 const ATMOSPHERIC_PALETTE = [
   ['#0f172a', '#1e1b4b'], ['#1e1b4b', '#450a0a'], ['#020617', '#1e293b'],
@@ -41,6 +42,8 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('home');
   const [previousView, setPreviousView] = useState<View>('home');
   const [selectedPoemId, setSelectedPoemId] = useState<string | null>(null);
+  const [errorStatusCode, setErrorStatusCode] = useState<number>(404);
+  const [errorResource, setErrorResource] = useState<string>('');
   const [currentUser, setCurrentUser] = useState<any>(null);
   const currentViewRef = useRef<View>('home');
 
@@ -57,8 +60,15 @@ const App: React.FC = () => {
     
     let targetView: View = 'home';
     let targetPoemId: string | null = null;
+    let targetErrorStatusCode = 404;
+    let targetErrorResource = '';
 
-    if (hash.startsWith('#/p/')) {
+    if (hash.startsWith('#/error/')) {
+      const codeSegment = hash.replace('#/error/', '');
+      const parsedCode = Number.parseInt(codeSegment, 10);
+      targetView = 'error';
+      targetErrorStatusCode = Number.isFinite(parsedCode) ? parsedCode : 500;
+    } else if (hash.startsWith('#/p/')) {
       targetView = 'detail';
       targetPoemId = hash.replace('#/p/', '');
     } else {
@@ -67,7 +77,11 @@ const App: React.FC = () => {
         '#/contact': 'contact', '#/privacy': 'privacy', '#/profile': 'profile',
         '#/ranks': 'leaderboard', '#/auth': 'auth', '#/admin': 'admin', '#/': 'home'
       };
-      targetView = views[hash] || 'home';
+      targetView = views[hash] || 'error';
+      if (targetView === 'error') {
+        targetErrorStatusCode = 404;
+        targetErrorResource = hash;
+      }
     }
 
     if (['profile', 'create', 'admin'].includes(targetView) && !session) {
@@ -79,6 +93,8 @@ const App: React.FC = () => {
     if (lastView !== 'detail' && lastView !== targetView) setPreviousView(lastView);
 
     setSelectedPoemId(targetPoemId);
+    setErrorStatusCode(targetErrorStatusCode);
+    setErrorResource(targetErrorResource);
     setCurrentView(targetView);
   };
 
@@ -106,7 +122,8 @@ const App: React.FC = () => {
     const routes: Record<View, string> = {
       'home': '#/', 'feed': '#/read', 'user-feed': '#/echoes', 'create': '#/create',
       'about': '#/about', 'contact': '#/contact', 'privacy': '#/privacy', 'admin': '#/admin',
-      'profile': '#/profile', 'leaderboard': '#/ranks', 'auth': '#/auth', 'detail': `#/p/${poemId}`
+      'profile': '#/profile', 'leaderboard': '#/ranks', 'auth': '#/auth', 'detail': `#/p/${poemId}`,
+      'error': `#/error/${poemId || '500'}`
     };
     window.location.hash = routes[view];
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -166,8 +183,9 @@ const App: React.FC = () => {
             <Feed poems={currentView === 'feed' ? adminPoems : userPoems} onSelectPoem={(id) => navigateTo('detail', id)} currentUser={currentUser} />
           </div>
         )}
-        {currentView === 'detail' && selectedPoem && (
-          <PoemDetail poem={selectedPoem} onBack={() => navigateTo(previousView)} />
+        {currentView === 'detail' && selectedPoem && <PoemDetail poem={selectedPoem} onBack={() => navigateTo(previousView)} />}
+        {currentView === 'detail' && !selectedPoem && (
+          <ErrorPage statusCode={404} requestedResource={`poem:${selectedPoemId || 'unknown'}`} onGoHome={() => navigateTo('home')} />
         )}
         {currentView === 'create' && <CreatePoem onPublish={handlePublish} onCancel={() => navigateTo('home')} />}
         {currentView === 'admin' && <AdminPortal onPublish={handlePublish} onCancel={() => navigateTo('home')} />}
@@ -177,6 +195,9 @@ const App: React.FC = () => {
         {currentView === 'about' && <About />}
         {currentView === 'contact' && <Contact />}
         {currentView === 'privacy' && <Privacy />}
+        {currentView === 'error' && (
+          <ErrorPage statusCode={errorStatusCode} requestedResource={errorResource} onGoHome={() => navigateTo('home')} />
+        )}
       </main>
       <Footer onContactClick={() => navigateTo('contact')} onPrivacyClick={() => navigateTo('privacy')} />
     </div>

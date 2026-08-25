@@ -31,7 +31,7 @@ export interface LeaderboardEntry {
   poemCount: number;
 }
 
-export type View = 'home' | 'feed' | 'user-feed' | 'detail' | 'create' | 'about' | 'admin' | 'contact' | 'privacy' | 'profile' | 'leaderboard' | 'auth';
+export type View = 'home' | 'feed' | 'user-feed' | 'detail' | 'create' | 'about' | 'admin' | 'contact' | 'privacy' | 'profile' | 'leaderboard' | 'auth' | 'error';
 
 export interface PoemMetadata {
   suggestedTitle: string;
