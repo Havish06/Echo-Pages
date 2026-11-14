@@ -1,0 +1,181 @@
+[
+  {
+    "id": 15,
+    "author": "user",
+    "payload": {
+      "type": "text",
+      "text": "\n\nCreate an image of this scene:\n\nA winding mountain road disappearing into mist at sunrise, dramatic lighting, cinematic mood, metaphor of unexpected life paths, realistic photography, 4k, shallow depth of field.",
+      "cMarkNode": {}
+    },
+    "createdTimestamp": {
+      "seconds": 1773574950,
+      "nanos": 286993047
+    },
+    "doneTimestamp": {
+      "seconds": 1773574952,
+      "nanos": 534664000
+    },
+    "turnIdentifier": "1773574950-286993047",
+    "appletEventMetadata": [
+      "74ef2dc9-2b2e-4404-9489-a742cf4f9662",
+      [
+        "1773574950",
+        84196000
+      ]
+    ],
+    "status": 1,
+    "mergedTurnIdentifiers": {}
+  },
+  {
+    "id": 16,
+    "author": "model",
+    "payload": {
+      "type": "thinking",
+      "text": "**Considering Image Generation**\n\nI'm currently focused on how to best translate the user's prompt into an image. I'm exploring the \"winding mountain road disappearing into mist at sunrise\" aspect, aiming for dramatic lighting and a cinematic mood. The \"metaphor of unexpected life paths\" adds a layer of depth I'm trying to capture visually through the road's form and vanishing point. I will now integrate this input, to be followed by another prompt.\n\n\n",
+      "cMarkNode": {}
+    },
+    "createdTimestamp": {
+      "seconds": 1773574950,
+      "nanos": 287595207
+    },
+    "doneTimestamp": {
+      "seconds": 1773574967,
+      "nanos": 170371885
+    },
+    "turnIdentifier": "1773574950-287595207",
+    "appletEventMetadata": [
+      "74ef2dc9-2b2e-4404-9489-a742cf4f9662",
+      [
+        "1773574952",
+        474582000
+      ]
+    ],
+    "status": 1,
+    "mergedTurnIdentifiers": {}
+  },
+  {
+    "id": 17,
+    "author": "model",
+    "payload": {
+      "type": "generationTable",
+      "entries": [
+        {
+          "path": "metadata.json",
+          "generationType": 1,
+          "description": "",
+          "isDone": true,
+          "diffs": []
+        },
+        {
+          "path": "src/App.tsx",
+          "generationType": 1,
+          "description": "",
+          "isDone": true,
+          "diffs": []
+        },
+        {
+          "path": "src/index.css",
+          "generationType": 1,
+          "description": "",
+          "isDone": true,
+          "diffs": []
+        }
+      ]
+    },
+    "createdTimestamp": {
+      "seconds": 1773574954,
+      "nanos": 28444332
+    },
+    "doneTimestamp": {
+      "seconds": 1773574974,
+      "nanos": 699982223
+    },
+    "turnIdentifier": "1773574966-788707580",
+    "appletEventMetadata": [
+      "74ef2dc9-2b2e-4404-9489-a742cf4f9662",
+      [
+        "1773574969",
+        191719000
+      ]
+    ],
+    "status": 1,
+    "mergedTurnIdentifiers": {}
+  },
+  {
+    "id": 18,
+    "author": "model",
+    "payload": {
+      "type": "lint",
+      "errorMessage": ""
+    },
+    "createdTimestamp": {
+      "seconds": 1773574966,
+      "nanos": 921449171
+    },
+    "doneTimestamp": {
+      "seconds": 1773574995,
+      "nanos": 938588659
+    },
+    "turnIdentifier": "1773574966-921449171",
+    "appletEventMetadata": [
+      "74ef2dc9-2b2e-4404-9489-a742cf4f9662",
+      [
+        "1773574969",
+        250315000
+      ]
+    ],
+    "status": 1
+  },
+  {
+    "id": 19,
+    "author": "model",
+    "payload": {
+      "type": "build",
+      "errorMessage": ""
+    },
+    "createdTimestamp": {
+      "seconds": 1773574966,
+      "nanos": 936482220
+    },
+    "doneTimestamp": {
+      "seconds": 1773575003,
+      "nanos": 727720301
+    },
+    "turnIdentifier": "1773574966-936482220",
+    "appletEventMetadata": [
+      "74ef2dc9-2b2e-4404-9489-a742cf4f9662",
+      [
+        "1773574969",
+        307782000
+      ]
+    ],
+    "status": 1
+  },
+  {
+    "id": 20,
+    "author": "model",
+    "payload": {
+      "type": "text",
+      "text": "I've created a cinematic image generation application called **Visions of the Path**.\n\nThe app is specifically designed to visualize the scene you described: *a winding mountain road disappearing into mist at sunrise*. It uses a sophisticated, atmospheric UI with:\n\n*   **Cinematic Typography**: Using *Playfair Display* for an editorial, high-end feel.\n*   **Atmospheric Styling**: A dark, moody color palette with subtle glows and glassmorphism.\n*   **Real-time Generation**: Powered by `gemini-2.5-flash-image` to create the realistic, 4K photography you requested.\n*   **Fluid Animations**: Smooth transitions and loading states using `motion`.\n\nThe application will automatically generate the vision upon loading. You can also trigger a regeneration to see different interpretations of the metaphor.",
+      "cMarkNode": {}
+    },
+    "createdTimestamp": {
+      "seconds": 1773575003,
+      "nanos": 729647821
+    },
+    "doneTimestamp": {
+      "seconds": 1773575006,
+      "nanos": 371404563
+    },
+    "turnIdentifier": "1773575003-729647821",
+    "appletEventMetadata": [
+      "74ef2dc9-2b2e-4404-9489-a742cf4f9662",
+      [
+        "1773575005",
+        944588000
+      ]
+    ],
+    "status": 1,
+    "mergedTurnIdentifiers": {}
+  }
+]

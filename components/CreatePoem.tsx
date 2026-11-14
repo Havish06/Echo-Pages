@@ -1,24 +1,48 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { Poem } from '../types.ts';
 import { CONFIG } from '../config.ts';
 import { supabase } from '../services/supabaseService.ts';
 import { ADMIN_EMAILS } from '../constants.ts';
 import { geminiService } from '../services/geminiService.ts';
+import { validationService } from '../services/validationService.ts';
 
 interface CreatePoemProps {
   onPublish: (poem: Partial<Poem>) => Promise<void>;
+  onUpdate?: (id: string, updates: Partial<Poem>) => Promise<void>;
   onCancel: () => void;
+  initialPoem?: Poem | null;
 }
 
-const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
+interface StoredDraft {
+  title: string;
+  content: string;
+  updatedAt: number;
+}
+
+const getDraftKey = (userId: string, poemId?: string) =>
+  poemId ? `echo_poem_edit_draft_${userId}_${poemId}` : `echo_poem_draft_${userId}`;
+
+const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onUpdate, onCancel, initialPoem }) => {
+  const [title, setTitle] = useState(initialPoem?.title || '');
+  const [content, setContent] = useState(initialPoem?.content || '');
   const [isPublishing, setIsPublishing] = useState(false);
   const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
   const [safetyError, setSafetyError] = useState<string | null>(null);
   const [regenCount, setRegenCount] = useState(0);
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [draftStatus, setDraftStatus] = useState<'idle' | 'saving' | 'saved' | 'restored'>('idle');
+
+  const loadedDraftKeyRef = useRef<string | null>(null);
+  const userEditedBeforeLoadRef = useRef(false);
+  const skipNextFlushRef = useRef(false);
+  const saveTimerRef = useRef<number | null>(null);
+  const latestDraftRef = useRef<{ key: string | null; title: string; content: string }>({
+    key: null,
+    title: initialPoem?.title || '',
+    content: initialPoem?.content || ''
+  });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -26,11 +50,165 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
       if (!u) { window.location.hash = '#/auth'; return; }
       setUser(u);
       setIsAdmin(!!u.email && ADMIN_EMAILS.includes(u.email));
+
+      const draftKey = getDraftKey(u.id, initialPoem?.id);
+      loadedDraftKeyRef.current = draftKey;
+      latestDraftRef.current.key = draftKey;
+
+      if (!userEditedBeforeLoadRef.current) {
+        try {
+          const raw = localStorage.getItem(draftKey);
+          if (raw) {
+            const parsed: StoredDraft = JSON.parse(raw);
+            if (initialPoem) {
+              const hasChanges =
+                (parsed.title ?? '') !== (initialPoem.title || '') ||
+                (parsed.content ?? '') !== (initialPoem.content || '');
+              if (hasChanges) {
+                setTitle(parsed.title ?? initialPoem.title ?? '');
+                setContent(parsed.content ?? initialPoem.content ?? '');
+                latestDraftRef.current.title = parsed.title ?? initialPoem.title ?? '';
+                latestDraftRef.current.content = parsed.content ?? initialPoem.content ?? '';
+                setDraftStatus('restored');
+              }
+            } else if (parsed.title?.trim() || parsed.content?.trim()) {
+              setTitle(parsed.title || '');
+              setContent(parsed.content || '');
+              latestDraftRef.current.title = parsed.title || '';
+              latestDraftRef.current.content = parsed.content || '';
+              setDraftStatus('restored');
+            }
+          }
+        } catch (err) {
+          console.warn("Failed to restore poem draft:", err);
+        }
+      }
     });
-  }, []);
+  }, [initialPoem]);
+
+  const persistDraft = (key: string, draftTitle: string, draftContent: string) => {
+    try {
+      const hasDraftContent = initialPoem
+        ? draftTitle !== (initialPoem.title || '') || draftContent !== (initialPoem.content || '')
+        : Boolean(draftTitle.trim() || draftContent.trim());
+
+      if (!hasDraftContent) {
+        localStorage.removeItem(key);
+        return false;
+      }
+
+      const payload: StoredDraft = {
+        title: draftTitle,
+        content: draftContent,
+        updatedAt: Date.now()
+      };
+      localStorage.setItem(key, JSON.stringify(payload));
+      return true;
+    } catch (err) {
+      console.warn("Failed to save poem draft:", err);
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    const draftKey = loadedDraftKeyRef.current;
+    latestDraftRef.current = { key: draftKey, title, content };
+
+    if (!draftKey || skipNextFlushRef.current) return;
+
+    const hasDraftContent = initialPoem
+      ? title !== (initialPoem.title || '') || content !== (initialPoem.content || '')
+      : Boolean(title.trim() || content.trim());
+
+    if (saveTimerRef.current) {
+      window.clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+
+    if (!hasDraftContent) {
+      localStorage.removeItem(draftKey);
+      setDraftStatus('idle');
+      return;
+    }
+
+    setDraftStatus((prev) => (prev === 'restored' ? 'restored' : 'saving'));
+    saveTimerRef.current = window.setTimeout(() => {
+      const saved = persistDraft(draftKey, title, content);
+      if (saved) setDraftStatus('saved');
+      saveTimerRef.current = null;
+    }, 300);
+
+    return () => {
+      if (saveTimerRef.current) {
+        window.clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+    };
+  }, [title, content, initialPoem]);
+
+  useEffect(() => {
+    const flushOnLeave = () => {
+      if (skipNextFlushRef.current) return;
+      const { key, title: latestTitle, content: latestContent } = latestDraftRef.current;
+      if (key) {
+        persistDraft(key, latestTitle, latestContent);
+      }
+    };
+
+    window.addEventListener('beforeunload', flushOnLeave);
+    return () => {
+      window.removeEventListener('beforeunload', flushOnLeave);
+      flushOnLeave();
+    };
+  }, [initialPoem]);
+
+  const clearStoredDraft = () => {
+    if (saveTimerRef.current) {
+      window.clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    const draftKey = loadedDraftKeyRef.current || (user ? getDraftKey(user.id, initialPoem?.id) : null);
+    if (draftKey) {
+      localStorage.removeItem(draftKey);
+    }
+  };
+
+  const handleClearDraft = () => {
+    clearStoredDraft();
+    const resetTitle = initialPoem?.title || '';
+    const resetContent = initialPoem?.content || '';
+    latestDraftRef.current.title = resetTitle;
+    latestDraftRef.current.content = resetContent;
+    setTitle(resetTitle);
+    setContent(resetContent);
+    setDraftStatus('idle');
+  };
+
+  const handleDiscard = () => {
+    skipNextFlushRef.current = true;
+    clearStoredDraft();
+    onCancel();
+  };
+
+  const handleTitleChange = (value: string) => {
+    if (!loadedDraftKeyRef.current) userEditedBeforeLoadRef.current = true;
+    setTitle(value);
+  };
+
+  const handleContentChange = (value: string) => {
+    if (!loadedDraftKeyRef.current) userEditedBeforeLoadRef.current = true;
+    setContent(value);
+  };
 
   const handleGenerateTitle = async () => {
     if (!content.trim() || regenCount >= CONFIG.MAX_TITLE_REGEN || isGeneratingTitle) return;
+    
+    const localVal = validationService.validateContent(content);
+    if (!localVal.valid) {
+      setSafetyError(localVal.reason || "Invalid fragment.");
+      return;
+    }
+
     setIsGeneratingTitle(true);
     setSafetyError(null);
     try {
@@ -45,27 +223,52 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
     finally { setIsGeneratingTitle(false); }
   };
 
-  const handlePublish = async () => {
+  const handleAction = async () => {
     if (!content.trim() || isPublishing) return;
     if (!user) return;
+
+    if (!initialPoem) {
+      const rateCheck = validationService.checkRateLimit(user.id);
+      if (!rateCheck.allowed && !isAdmin) {
+        setSafetyError(rateCheck.reason || "Frequency limit reached.");
+        return;
+      }
+    }
+
+    const localVal = validationService.validateContent(content);
+    if (!localVal.valid) {
+      setSafetyError(localVal.reason || "Structural dissonance detected.");
+      return;
+    }
     
     setIsPublishing(true);
     setSafetyError(null);
     
     try {
-      const poemDraft: Partial<Poem> = {
-        title: title.trim(),
-        content: content.trim(),
-        author: user.user_metadata?.display_name || user.email?.split('@')[0] || 'Anonymous',
-        userId: user.id,
-        timestamp: Date.now()
-      };
-      await onPublish(poemDraft);
+      if (initialPoem && onUpdate) {
+        await onUpdate(initialPoem.id, { title: title.trim(), content: content.trim() });
+      } else {
+        const poemDraft: Partial<Poem> = {
+          title: title.trim(),
+          content: content.trim(),
+          author: user.user_metadata?.display_name || user.email?.split('@')[0] || 'Anonymous',
+          userId: user.id,
+          timestamp: Date.now()
+        };
+        await onPublish(poemDraft);
+        validationService.recordPost(user.id);
+      }
+      skipNextFlushRef.current = true;
+      clearStoredDraft();
     } catch (err: any) {
       setSafetyError(err.message || "Transmission interrupted by forbidden frequencies.");
       setIsPublishing(false);
     }
   };
+
+  const hasDraftToClear = initialPoem
+    ? title !== (initialPoem.title || '') || content !== (initialPoem.content || '')
+    : Boolean(title.trim() || content.trim());
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-20 animate-fade-in relative">
@@ -81,7 +284,7 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
               <h3 className="instrument-serif italic text-4xl text-red-500/90 tracking-tight">Forbidden Resonance</h3>
               <p className="serif-font text-lg italic opacity-60 leading-relaxed text-white">
                 "{safetyError}"<br/>
-                The Sanctuary requires purity of thought.
+                The Sanctuary requires purity of thought and rhythm.
               </p>
             </div>
             <button 
@@ -95,65 +298,76 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
       )}
 
       <div className="space-y-12">
-        <header className="flex justify-between items-center border-b border-echo-border pb-8">
+        <header className="flex justify-between items-center border-b border-echo-border pb-8 gap-4">
           <div>
-            <h2 className="instrument-serif text-5xl italic text-white">Commit Fragment</h2>
-            <p className="text-[9px] uppercase tracking-widest opacity-30 mt-1">
-              {isAdmin ? "Admin Publication" : "Community Echo"}
-            </p>
+            <h2 className="instrument-serif text-5xl italic text-white">{initialPoem ? 'Refine Fragment' : 'Commit Fragment'}</h2>
+            <div className="flex items-center space-x-4 mt-1">
+              <p className="text-[9px] uppercase tracking-widest opacity-30">
+                {isAdmin ? "Admin Publication" : "Community Echo"}
+              </p>
+              {draftStatus !== 'idle' && (
+                <span className="text-[9px] uppercase tracking-widest opacity-50 italic text-white/70">
+                  {draftStatus === 'saving' && '• Saving draft...'}
+                  {draftStatus === 'saved' && '• Draft saved'}
+                  {draftStatus === 'restored' && '• Draft restored'}
+                </span>
+              )}
+            </div>
           </div>
-          <button onClick={onCancel} className="text-[10px] uppercase tracking-widest opacity-30 hover:opacity-100 px-4 py-2 border border-echo-border transition-all text-white">Discard</button>
+          <div className="flex items-center space-x-3">
+            {hasDraftToClear && (
+              <button
+                onClick={handleClearDraft}
+                className="text-[10px] uppercase tracking-widest opacity-30 hover:opacity-100 px-4 py-2 border border-echo-border transition-all text-white"
+              >
+                Clear Draft
+              </button>
+            )}
+            <button onClick={handleDiscard} className="text-[10px] uppercase tracking-widest opacity-30 hover:opacity-100 px-4 py-2 border border-echo-border transition-all text-white">Discard</button>
+          </div>
         </header>
         
         <div className="space-y-16">
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <p className="text-[10px] uppercase tracking-[0.4em] opacity-30 text-white font-bold">Title (Label)</p>
-              {content.trim() && regenCount < CONFIG.MAX_TITLE_REGEN && (
+              <p className="text-[10px] uppercase tracking-[0.4em] opacity-30 text-white font-bold">Title (Optional)</p>
+              {regenCount < CONFIG.MAX_TITLE_REGEN && content.length > 10 && (
                 <button 
                   onClick={handleGenerateTitle}
                   disabled={isGeneratingTitle}
-                  className="text-[9px] uppercase tracking-widest opacity-60 hover:opacity-100 transition-all flex items-center space-x-2 border border-white/10 px-3 py-1 bg-white/5 text-white"
+                  className="text-[8px] uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity border-b border-white/20 pb-0.5"
                 >
-                  {isGeneratingTitle ? "Analyzing Content..." : regenCount === 0 ? "Magic Title" : `Regen (${CONFIG.MAX_TITLE_REGEN - regenCount})`}
+                  {isGeneratingTitle ? 'Tuning...' : 'Generate with AI'}
                 </button>
               )}
             </div>
-            <input
-              type="text"
+            <input 
+              type="text" 
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Leave blank for auto-generation..."
-              className="w-full bg-transparent border-b border-echo-border py-4 focus:outline-none instrument-serif text-4xl text-white placeholder:opacity-10 transition-all focus:border-white/40"
-              disabled={isPublishing}
+              onChange={(e) => handleTitleChange(e.target.value)}
+              placeholder="The Echo of..."
+              className="w-full bg-transparent border-b border-echo-border py-4 focus:border-white focus:outline-none instrument-serif text-4xl transition-colors text-white"
             />
           </div>
 
           <div className="space-y-4">
-            <p className="text-[10px] uppercase tracking-[0.4em] opacity-30 text-white font-bold">Fragment</p>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Whisper your thoughts..."
-              className="w-full h-80 bg-transparent border border-echo-border p-10 focus:border-white/40 focus:outline-none transition-all serif-font text-2xl italic leading-relaxed shadow-inner text-white/90 rounded-sm"
-              disabled={isPublishing}
-            />
+             <p className="text-[10px] uppercase tracking-[0.4em] opacity-30 text-white font-bold">Fragment</p>
+             <textarea 
+               value={content}
+               onChange={(e) => handleContentChange(e.target.value)}
+               placeholder="Whisper into the void..."
+               className="w-full h-80 bg-transparent border border-echo-border p-8 focus:border-white focus:outline-none transition-all serif-font text-2xl italic leading-relaxed whitespace-pre-line text-white/90"
+             />
           </div>
 
-          <div className="space-y-8">
-            <button
-              onClick={handlePublish}
+          <div className="pt-8">
+            <button 
+              onClick={handleAction}
               disabled={isPublishing || !content.trim()}
-              className="w-full py-8 bg-white text-black text-[11px] uppercase tracking-[0.5em] font-black hover:bg-neutral-200 transition-all disabled:opacity-20 flex items-center justify-center space-x-4 shadow-2xl"
+              className="w-full py-6 bg-echo-text text-echo-bg text-[11px] uppercase tracking-[0.4em] font-bold hover:bg-white transition-all disabled:opacity-20 flex items-center justify-center space-x-4"
             >
-              {isPublishing ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                  <span>Committing to the Void...</span>
-                </>
-              ) : (
-                <span>Publish Echo</span>
-              )}
+              {isPublishing && <div className="w-4 h-4 border-2 border-echo-bg/30 border-t-echo-bg rounded-full animate-spin" />}
+              <span>{isPublishing ? 'Analyzing Resonance...' : (initialPoem ? 'Update Echo' : 'Commit to the Void')}</span>
             </button>
           </div>
         </div>
@@ -162,4 +376,5 @@ const CreatePoem: React.FC<CreatePoemProps> = ({ onPublish, onCancel }) => {
   );
 };
 
+// Fix for line 13 of App.tsx: Adding default export
 export default CreatePoem;

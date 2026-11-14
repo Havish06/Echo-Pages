@@ -1,3 +1,4 @@
+
 export interface UserProfile {
   id: string;
   username: string;
@@ -5,22 +6,24 @@ export interface UserProfile {
   avatarUrl?: string;
   totalPoems: number;
   avgScore: number;
-  topGenre: string;
+  followersCount: number;
+  followingCount: number;
 }
 
 export interface Poem {
   id: string;
   title: string;
   content: string;
-  author: string; // The display name
+  author: string;
   userId: string;
   timestamp: number;
-  score: number; // Genre match accuracy
-  tone: 'melancholic' | 'hopeful' | 'livid' | 'nostalgic';
+  score: number;
   genre: string;
+  tone: string;
   justification?: string;
   backgroundColor: string;
   visibility: 'read' | 'echoes';
+  isEdited?: boolean;
 }
 
 export interface LeaderboardEntry {
@@ -31,13 +34,14 @@ export interface LeaderboardEntry {
   poemCount: number;
 }
 
-export type View = 'home' | 'feed' | 'user-feed' | 'detail' | 'create' | 'about' | 'admin' | 'contact' | 'privacy' | 'profile' | 'leaderboard' | 'auth';
+export type View = 'home' | 'feed' | 'user-feed' | 'detail' | 'create' | 'about' | 'admin' | 'contact' | 'privacy' | 'profile' | 'user-profile' | 'leaderboard' | 'auth';
 
 export interface PoemMetadata {
   suggestedTitle: string;
   backgroundGradient: string;
   score: number;
   genre: string;
+  tone: string;
   justification: string;
   isSafe: boolean;
   containsRestricted: boolean;
